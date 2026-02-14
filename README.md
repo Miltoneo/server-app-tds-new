@@ -104,6 +104,41 @@ A documentação completa está no repositório **server-app-tds**:
   - Simplificar para admin + select2 + redirect
 - [x] Validar configuração: `python manage.py check` ✅
 
+#### ✅ Dia 3: Banco de Dados (CONCLUÍDO - 14/02/2026)
+
+- [x] Criar banco PostgreSQL local:
+  - Banco: `db_tds_new`
+  - Usuário: `tsdb_django_d4j7g9` (credenciais de produção)
+  - PostgreSQL: 17.7 (Debian)
+- [x] Script automatizado: `setup_database.py`
+  - Cria usuário e banco
+  - Configura permissões
+  - Testa conexão
+- [x] Testar conexão Django: `python manage.py check` ✅
+- [x] Criar estrutura de modelos:
+  - `tds_new/models/__init__.py`
+  - `tds_new/models/base.py` (placeholder)
+- [x] TimescaleDB:
+  - ⚠️ Não instalado localmente (opcional)
+  - ✅ Disponível em produção (onkoto.com.br:5443)
+
+#### 🔄 Dias 4-5: Documentação e Testes Iniciais (PRÓXIMO)
+  - crispy-forms + crispy-bootstrap5 (forms)
+- [x] Configurar `.env.dev`:
+  - DATABASE_NAME=db_tds_new
+  - MQTT_BROKER_HOST=localhost
+  - MQTT_TOPIC_PREFIX=tds_new/devices
+  - VISITOR_EMAIL=visitante@onkoto.com.br
+  - TIMESCALE_RETENTION_DAYS=90
+- [x] Limpar `settings.py`:
+  - Remover django_adsense_injector, jquery, django_tables2
+  - Remover middleware do CONSTRUTORA
+  - Comentar AUTH_USER_MODEL (aguardando models)
+- [x] Corrigir `urls.py`:
+  - Remover imports construtora
+  - Simplificar para admin + select2 + redirect
+- [x] Validar configuração: `python manage.py check` ✅
+
 #### 🔄 Dia 3: Banco de Dados (PRÓXIMO)
 - [ ] Testar `python manage.py check`
 
