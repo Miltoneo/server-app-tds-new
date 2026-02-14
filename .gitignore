@@ -1,0 +1,26 @@
+*.pyc
+/pgdata
+/env
+/rotinas/migrations
+/myenv
+
+# Environment variables (NEVER commit!)
+.env
+.env.local
+.env.production
+.env.staging
+
+# Django logs
+django_logs/
+*.log
+
+# Database
+*.db
+*.sqlite3
+
+# Media files
+media/
+
+# Static files
+staticfiles/
+static_root/
