@@ -123,9 +123,12 @@ MIDDLEWARE = [
     # Django-axes: REMOVIDO - usando apenas signals para controle manual
     # 'axes.middleware.AxesMiddleware',  # ← DESABILITADO para tela customizada
     
-    # SaaS Multi-tenant Middleware - TODO: Implementar tds_new.middleware
-    # 'tds_new.middleware.TenantMiddleware',
-    # 'tds_new.middleware.LicenseValidationMiddleware',
+    # SaaS Multi-tenant Middleware (Week 3)
+    'tds_new.middleware.TenantMiddleware',
+    'tds_new.middleware.LicenseValidationMiddleware',
+    
+    # Debug Middleware (apenas em desenvolvimento)
+    'tds_new.middleware.SessionDebugMiddleware',
 ]
 
 # =============================================================================
@@ -145,11 +148,12 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                # TODO: Habilitar após criar modelos
-                # 'core.context_processors.empresa_context',
-                # 'core.context_processors.conta_context',
-                # 'core.context_processors.session_context',
-                # 'core.context_processors.usuario_context',
+                
+                # Custom Context Processors (Week 3)
+                'core.context_processors.app_version',
+                'core.context_processors.conta_context',
+                'core.context_processors.session_context',
+                'core.context_processors.usuario_context',
             ],
         },
     },

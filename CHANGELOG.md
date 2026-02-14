@@ -1,5 +1,224 @@
 # 📝 LOG DE IMPLEMENTAÇÃO - TDS NEW
 
+## ✅ SEMANA 3: MIDDLEWARE E CONTEXT PROCESSORS (14/02/2026)
+
+**Status:** CONCLUÍDO  
+**Tempo:** ~1 hora  
+**Responsável:** Equipe de Desenvolvimento  
+**Commit:** `[pendente]`
+
+---
+
+### 🎯 Objetivos Cumpridos
+
+1. ✅ Implementar middleware multi-tenant (TenantMiddleware)
+2. ✅ Implementar validação de licença (LicenseValidationMiddleware)
+3. ✅ Criar context processors para templates
+4. ✅ Configurar settings.py (MIDDLEWARE + TEMPLATES)
+5. ✅ Atualizar porta do TimescaleDB (5432 → 5442)
+
+---
+
+### 📋 Tarefas Executadas
+
+#### 1. Middleware Implementado (tds_new/middleware.py)
+
+**A. TenantMiddleware**
+```python
+class TenantMiddleware(MiddlewareMixin):
+    - Garante isolamento de dados por conta/tenant
+    - Verifica se usuário tem acesso à conta selecionada
+    - Define request.conta_ativa e request.usuario_conta
+    - Armazena conta em thread-local para acesso global
+    - Redireciona para seleção de conta se necessário
+    - URLs isentas: /admin/, /auth/, /static/, /media/
+```
+
+**B. LicenseValidationMiddleware**
+```python
+class LicenseValidationMiddleware(MiddlewareMixin):
+    - Valida se a conta está ativa
+    - TODO (Week 8): Integrar com shared.assinaturas
+    - Redireciona para /auth/license-expired/ se inativa
+    - URLs isentas: /admin/, /auth/, /static/, /media/
+```
+
+**C. SessionDebugMiddleware**
+```python
+class SessionDebugMiddleware(MiddlewareMixin):
+    - Debug de sessão em desenvolvimento (apenas DEBUG=True)
+    - Logs: path, user, session keys, conta ativa
+```
+
+**D. Helper Function**
+```python
+def get_current_account():
+    - Retorna a conta ativa no contexto da requisição
+    - Thread-safe usando threading.local()
+```
+
+#### 2. Context Processors (core/context_processors.py)
+
+**A. conta_context(request)**
+```python
+- Injeta 'conta' e 'conta_id' no contexto dos templates
+- Prioridade 1: request.conta_ativa (middleware)
+- Prioridade 2: session['conta_ativa_id'] (fallback)
+- Retorna None se nenhuma conta ativa
+```
+
+**B. app_version(request)**
+```python
+- Injeta APP_VERSION no contexto
+- Valor de settings.APP_VERSION
+```
+
+**C. session_context(request)**
+```python
+- Injeta variáveis de sessão:
+  * titulo_pagina
+  * cenario_nome (Dashboard, Dispositivos, Telemetria, etc)
+  * menu_nome
+```
+
+**D. usuario_context(request)**
+```python
+- Injeta permissões do usuário:
+  * usuario_atual: User object
+  * usuario_admin: bool (role='admin')
+  * usuario_pode_editar: bool (role='admin' ou 'editor')
+  * usuario_pode_visualizar: bool (qualquer role ativo)
+- Usa ContaMembership.is_admin(), .can_edit(), .can_view()
+```
+
+#### 3. Configuração settings.py
+
+**A. MIDDLEWARE atualizado**
+```python
+MIDDLEWARE = [
+    # ... Django defaults ...
+    'tds_new.middleware.TenantMiddleware',             # ← NOVO
+    'tds_new.middleware.LicenseValidationMiddleware',  # ← NOVO
+    'tds_new.middleware.SessionDebugMiddleware',       # ← NOVO (dev only)
+]
+```
+
+**B. TEMPLATES context_processors atualizado**
+```python
+'context_processors': [
+    # ... Django defaults ...
+    'core.context_processors.app_version',      # ← NOVO
+    'core.context_processors.conta_context',    # ← NOVO
+    'core.context_processors.session_context',  # ← NOVO
+    'core.context_processors.usuario_context',  # ← NOVO
+]
+```
+
+#### 4. Atualização de Configuração de Banco
+
+**Porta TimescaleDB alterada:**
+- `environments/.env.dev`: DATABASE_PORT=5432 → 5442
+- `environments/.env.prod`: DATABASE_PORT=5443 → 5442
+- Motivo: Alinhamento com infraestrutura Docker externa
+
+---
+
+### ✅ Validação
+
+```bash
+python manage.py check
+# [CONFIG] tds_new | Ambiente: DEV | DEBUG: True | Arquivo: .env.dev
+# System check identified 2 issues (3 silenced).
+# ✅ Configuração válida
+```
+
+**Warnings não críticos:**
+- `axes.W005`: AXES_USERNAME_CALLABLE (configuração customizada)
+- `staticfiles.W004`: Diretório staticfiles não existe (criado em produção)
+
+---
+
+### 📊 Arquitetura Multi-Tenant
+
+```
+Request → TenantMiddleware
+  ↓
+  1. Verifica se usuário autenticado
+  2. Busca conta ativa na sessão (conta_ativa_id)
+  3. Valida acesso via ContaMembership
+  4. Define request.conta_ativa e request.usuario_conta
+  5. Armazena em thread-local (get_current_account())
+  ↓
+LicenseValidationMiddleware
+  ↓
+  1. Verifica conta.is_active
+  2. TODO: Integrar com shared.assinaturas (Week 8)
+  ↓
+View Execution
+  ↓
+  - Acessa request.conta_ativa
+  - Queries filtradas automaticamente por conta
+  ↓
+Template Rendering
+  ↓
+  - Context processors injetam variáveis globais:
+    * {{ conta }}, {{ conta_id }}
+    * {{ usuario_admin }}, {{ usuario_pode_editar }}
+    * {{ titulo_pagina }}, {{ cenario_nome }}
+```
+
+---
+
+### 🔑 Uso nas Views
+
+```python
+from django.shortcuts import render
+
+def minha_view(request):
+    # Conta ativa já está no request (via middleware)
+    conta = request.conta_ativa
+    usuario_conta = request.usuario_conta
+    
+    # Templates recebem variáveis automaticamente (via context processors)
+    context = {
+        'titulo_pagina': 'Minha Página',
+        # conta, conta_id, usuario_admin já estão disponíveis
+    }
+    return render(request, 'template.html', context)
+```
+
+---
+
+### 🔑 Uso nos Templates
+
+```django
+{# Variáveis injetadas automaticamente #}
+<h1>{{ titulo_pagina }}</h1>
+<p>Conta: {{ conta.name }}</p>
+
+{% if usuario_admin %}
+  <a href="#">Configurações Admin</a>
+{% endif %}
+
+{% if usuario_pode_editar %}
+  <button>Editar</button>
+{% endif %}
+```
+
+---
+
+### 🚀 Próximos Passos - SEMANA 4
+
+#### Week 4-5: Sistema de Cenários e UI Base
+- [📁] Criar módulo `tds_new/cenarios/`
+- [🎨] Implementar templates base com Bootstrap 5
+- [📊] Dashboard inicial
+- [🔐] Views de autenticação (login, logout, select-account)
+- [📱] Menu de navegação com cenários
+- [ ] Sistema de roteamento de cenários
+
+---
+
 ## ✅ SEMANA 2: MODELOS E AUTENTICAÇÃO (14/02/2026)
 
 **Status:** CONCLUÍDO  
