@@ -5,7 +5,7 @@
 **Status:** CONCLUÍDO  
 **Tempo:** ~1 hora  
 **Responsável:** Equipe de Desenvolvimento  
-**Commit:** `1a0c19e` - feat: setup inicial do projeto TDS New - greenfield
+**Commit:** `6dc8273` - feat: setup inicial do projeto TDS New - greenfield
 
 ---
 

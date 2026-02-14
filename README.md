@@ -3,7 +3,8 @@
 **Projeto Greenfield** baseado na arquitetura do **CONSTRUTORA**  
 **Status:** 🟢 Em Desenvolvimento - Dia 2 Concluído  
 **Criado em:** 14/02/2026  
-**Commit Inicial:** `1a0c19e` - 2066 insertions, 20 files
+**Repositório:** https://github.com/Miltoneo/server-app-tds-new  
+**Commit:** `6dc8273` - 2070 insertions, 20 files
 
 ---
 
