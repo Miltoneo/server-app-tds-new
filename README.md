@@ -64,36 +64,106 @@ O sistema permite monitoramento remoto de consumo (água, energia, gás) via dis
 
 ## 📦 INSTALAÇÃO E SETUP
 
-### Pré-requisitos
+### 🐳 **Opção 1: Docker Compose (RECOMENDADO)**
 
-- Python 3.12.10+
-- PostgreSQL 17+ (com usuário `postgres` configurado)
+> ✅ **Vantagem:** Paridade total dev/prod com TimescaleDB 2.17 igual produção
+
+#### Pré-requisitos
+- Docker Desktop (Windows/Mac) ou Docker Engine + Docker Compose (Linux)
+- Python 3.12.10+ (para executar Django localmente)
 - Git
-- virtualenv (`pip install virtualenv`)
 
-### 1. Clone do Repositório
+#### Setup Rápido
 
 ```bash
+# 1. Clone do repositório
 git clone https://github.com/Miltoneo/server-app-tds-new.git
 cd server-app-tds-new
-```
 
-### 2. Criar e Ativar Virtualenv
-
-```bash
-# Criar virtualenv
+# 2. Criar e ativar virtualenv
 python -m virtualenv venv
+.\venv\Scripts\Activate.ps1  # Windows
+# source venv/bin/activate    # Linux/Mac
 
-# Ativar virtualenv (Windows PowerShell)
-.\venv\Scripts\Activate.ps1
+# 3. Instalar dependências Python
+pip install -r requirements.txt
 
-# Ativar virtualenv (Linux/Mac)
-source venv/bin/activate
+# 4. Subir stack Docker (PostgreSQL + Redis + MQTT)
+docker compose -f docker-compose.dev.yml up -d
+
+# 5. Aguardar serviços ficarem healthy (~30s)
+docker compose -f docker-compose.dev.yml ps
+
+# 6. Aplicar migrations
+python manage.py migrate
+
+# 7. Criar superusuário
+python criar_superuser.py
+# Ou: python manage.py createsuperuser
+
+# 8. Executar servidor Django
+python manage.py runserver
 ```
 
-### 3. Instalar Dependências
+#### Verificar Setup
 
 ```bash
+# Testar conexões com serviços Docker
+python test_docker_connections.py
+
+# Output esperado:
+# ✅ PostgreSQL: PostgreSQL 17.x
+# ✅ TimescaleDB: 2.17.2
+# ✅ Redis: 7.2.x
+# ✅ MQTT: Conectado com sucesso
+```
+
+#### Comandos Docker Compose
+
+```bash
+# Parar serviços
+docker compose -f docker-compose.dev.yml stop
+
+# Parar e remover containers (dados permanecem)
+docker compose -f docker-compose.dev.yml down
+
+# Parar e remover TUDO (inclusive volumes)
+docker compose -f docker-compose.dev.yml down -v
+
+# Ver logs
+docker compose -f docker-compose.dev.yml logs -f
+
+# Acessar PostgreSQL
+docker exec -it tds_new_db_dev psql -U tsdb_django_d4j7g9 -d db_tds_new
+```
+
+**📖 Documentação completa:** [`docker/README.md`](docker/README.md)
+
+---
+
+### 💻 **Opção 2: Setup Local (PostgreSQL instalado)**
+
+> ⚠️ **Desvantagem:** TimescaleDB não disponível localmente = ambientes dev/prod diferentes
+
+#### Pré-requisitos
+- Python 3.12.10+
+- PostgreSQL 17+ (instalado localmente)
+- Git
+- virtualenv
+
+#### Passos de Instalação
+
+```bash
+# 1. Clone do repositório
+git clone https://github.com/Miltoneo/server-app-tds-new.git
+cd server-app-tds-new
+
+# 2. Criar e ativar virtualenv
+python -m virtualenv venv
+.\venv\Scripts\Activate.ps1  # Windows
+# source venv/bin/activate    # Linux/Mac
+
+# 3. Instalar dependências Python
 pip install -r requirements.txt
 ```
 
@@ -108,12 +178,8 @@ pip install -r requirements.txt
 - django-select2 (widgets)
 - crispy-forms + crispy-bootstrap5 (forms)
 
-### 4. Configurar Banco de Dados
-
-O projeto inclui um script automatizado para configurar o banco de dados:
-
 ```bash
-# Executar script de setup (requer PostgreSQL instalado)
+# 4. Configurar banco de dados (automático)
 python setup_database.py
 ```
 
@@ -123,7 +189,7 @@ python setup_database.py
 3. ✅ Criar banco `db_tds_new`
 4. ✅ Configurar permissões
 5. ✅ Testar conexão
-6. ⚠️ Verificar TimescaleDB (opcional no ambiente local)
+6. ⚠️ TimescaleDB não disponível (apenas em prod)
 
 **Configuração manual (alternativa):**
 
@@ -142,6 +208,11 @@ CREATE DATABASE db_tds_new OWNER tsdb_django_d4j7g9;
 
 -- Dar permissões
 GRANT ALL PRIVILEGES ON DATABASE db_tds_new TO tsdb_django_d4j7g9;
+```
+
+```bash
+# 5. Ajustar .env.dev para PostgreSQL padrão
+# Trocar DATABASE_ENGINE para: django.db.backends.postgresql
 ```
 
 ### 5. Configurar Ambiente (.env)

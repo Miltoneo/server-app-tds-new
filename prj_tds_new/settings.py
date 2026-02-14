@@ -239,8 +239,8 @@ else:
 # CONFIGURAÇÕES DE AUTENTICAÇÃO
 # =============================================================================
 
-# TODO: Habilitar após criar tds_new/models/base.py com CustomUser
-# AUTH_USER_MODEL = 'tds_new.CustomUser'
+# Modelo de usuário customizado (usa email como USERNAME_FIELD)
+AUTH_USER_MODEL = 'tds_new.CustomUser'
 
 AUTHENTICATION_BACKENDS = [
     # REMOVIDO: 'axes.backends.AxesStandaloneBackend' - causa conflito com authenticate()

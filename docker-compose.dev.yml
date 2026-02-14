@@ -1,0 +1,103 @@
+# =============================================================================
+# Docker Compose para Desenvolvimento - TDS New
+# =============================================================================
+# Stack completa para desenvolvimento local com paridade de produção
+# 
+# Serviços:
+# - db: PostgreSQL 17 + TimescaleDB 2.17 (MESMA versão de produção)
+# - redis: Redis 7.2 (cache e sessões)
+# - mqtt: Mosquitto MQTT (broker de telemetria)
+#
+# Como usar:
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml down
+# =============================================================================
+
+version: '3.9'
+
+services:
+  # ===========================================================================
+  # PostgreSQL 17 + TimescaleDB 2.17
+  # ===========================================================================
+  db:
+    image: timescale/timescaledb:2.17.2-pg17
+    container_name: tds_new_db_dev
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      # Credenciais EXATAS de produção
+      POSTGRES_DB: db_tds_new
+      POSTGRES_USER: tsdb_django_d4j7g9
+      POSTGRES_PASSWORD: DjangoTS2025TimeSeries
+      # Configurações do PostgreSQL
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - tds_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tsdb_django_d4j7g9 -d db_tds_new"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================================================
+  # Redis 7.2 - Cache e Sessões
+  # ===========================================================================
+  redis:
+    image: redis:7.2-alpine
+    container_name: tds_new_redis_dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass StrongRedisPass2024!
+    volumes:
+      - redis_data:/data
+    networks:
+      - tds_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ===========================================================================
+  # Mosquitto MQTT - Broker de Telemetria
+  # ===========================================================================
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    container_name: tds_new_mqtt_dev
+    restart: unless-stopped
+    ports:
+      - "1883:1883"     # MQTT
+      - "9001:9001"     # WebSocket
+    volumes:
+      - ./docker/mosquitto/config:/mosquitto/config
+      - ./docker/mosquitto/data:/mosquitto/data
+      - ./docker/mosquitto/log:/mosquitto/log
+    networks:
+      - tds_network
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -t '$$SYS/#' -C 1 | grep -v Error || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+# =============================================================================
+# Volumes Persistentes
+# =============================================================================
+volumes:
+  postgres_data:
+    name: tds_new_postgres_data_dev
+  redis_data:
+    name: tds_new_redis_data_dev
+
+# =============================================================================
+# Network
+# =============================================================================
+networks:
+  tds_network:
+    name: tds_new_network_dev
+    driver: bridge
