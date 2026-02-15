@@ -1,5 +1,304 @@
 # 📝 LOG DE IMPLEMENTAÇÃO - TDS NEW
 
+## ✅ SEMANA 4-5: SISTEMA DE CENÁRIOS E UI BASE (14/02/2026)
+
+**Status:** CONCLUÍDO  
+**Tempo:** ~2 horas  
+**Responsável:** Equipe de Desenvolvimento  
+**Commit:** `[pendente]`
+
+---
+
+### 🎯 Objetivos Cumpridos
+
+1. ✅ Criar sistema de cenários (navegação modular)
+2. ✅ Implementar views de autenticação (login, logout, select-account)
+3. ✅ Criar templates base com Bootstrap 5.3
+4. ✅ Implementar dashboard inicial
+5. ✅ Configurar URLs completas do sistema
+
+---
+
+### 📋 Tarefas Executadas
+
+#### 1. Sistema de Constantes (tds_new/constants.py)
+
+**A. Classe Cenarios**
+```python
+- HOME: Dashboard principal
+- DISPOSITIVOS: Gerenciamento de dispositivos IoT
+- TELEMETRIA: Monitoramento em tempo real
+- ALERTAS: Central de alertas
+- RELATORIOS: Relatórios e análises
+- CONFIGURACOES: Configurações do sistema
+- CONTA: Gerenciamento da conta
+- USUARIOS: Gerenciamento de usuários
+```
+
+**B. Outras Constantes**
+```python
+- StatusDispositivo: ATIVO, INATIVO, MANUTENCAO, ERRO
+- TipoAlerta: INFO, WARNING, CRITICAL
+- Permissoes: ADMIN, EDITOR, VIEWER
+```
+
+#### 2. Views de Cenários (tds_new/views/cenario.py)
+
+**Helper: _configurar_cenario(request, cenario_config)**
+- Configura variáveis de sessão: menu_nome, cenario_nome, titulo_pagina
+- Marca sessão como modificada
+- Log de debug em desenvolvimento
+
+**Cenários Implementados:**
+- `cenario_home()` - Dashboard principal (funcional)
+- `cenario_dispositivos()` - Dispositivos IoT (placeholder Week 6-7)
+- `cenario_telemetria()` - Telemetria (placeholder Week 8-9)
+- `cenario_alertas()` - Alertas (placeholder Week 8-9)
+- `cenario_relatorios()` - Relatórios (placeholder Week 10)
+- `cenario_configuracoes()` - Configurações (placeholder Week 11)
+- `cenario_conta()` - Gestão de conta (placeholder Week 11)
+- `cenario_usuarios()` - Gestão de usuários (placeholder Week 11)
+
+#### 3. Views de Autenticação (tds_new/views/auth.py)
+
+**A. login_view(request)**
+```python
+- Login simples por email/senha (Django authenticate)
+- Fluxo:
+  1. Valida credenciais
+  2. Se única conta: seleciona automaticamente
+  3. Se múltiplas contas: redireciona para select_account
+  4. Se nenhuma conta: erro de acesso
+- Log de tentativas de login (IP tracking)
+- TODO: django-axes, CAPTCHA, auditoria completa
+```
+
+**B. select_account_view(request)**
+```python
+- Exibe lista de contas disponíveis (ContaMembership ativas)
+- Valida se conta está ativa (is_active)
+- Define conta_ativa_id na sessão
+- Configura cenário HOME após seleção
+```
+
+**C. logout_view(request)**
+```python
+- Logout com limpeza completa de sessão (flush)
+- Log de logout com IP
+- Redireciona para login
+```
+
+**D. license_expired_view(request)**
+```python
+- Tela exibida quando conta está inativa
+- TODO (Week 8-9): Integração com shared.assinaturas
+```
+
+**E. Helper: _get_client_ip(request)**
+```python
+- Extrai IP considerando proxies reversos (X-Forwarded-For)
+```
+
+#### 4. View de Dashboard (tds_new/views/dashboard.py)
+
+**dashboard_view(request)**
+```python
+- Dashboard principal do sistema
+- Context mockado para Week 4-5:
+  * total_dispositivos: 0
+  * dispositivos_ativos: 0
+  * alertas_pendentes: 0
+  * ultima_leitura: None
+- TODO (Week 6-7): Dados reais de dispositivos
+- TODO (Week 8-9): Telemetria e alertas
+- TODO (Week 10): Gráficos com Chart.js
+```
+
+#### 5. Templates Bootstrap 5.3
+
+**A. base.html (tds_new/templates/base.html)**
+```django
+- Layout completo com:
+  * Navbar fixa superior (60px)
+  * Sidebar fixa lateral (250px)
+  * Área de conteúdo principal
+  * Sistema de mensagens (alerts)
+  * Dropdown de conta e usuário
+- Features:
+  * Bootstrap 5.3.2 CDN
+  * Bootstrap Icons 1.11.3
+  * CSS customizado com variáveis CSS
+  * Design responsivo (mobile-first)
+  * Cards com hover effects
+  * Animações suaves (transitions)
+- Sidebar com links para todos os cenários
+- Navbar exibe: título página, conta ativa, usuário
+```
+
+**B. auth/login.html**
+```django
+- Tela de login standalone (sem base.html)
+- Design moderno com gradient background
+- Form simples: email + senha
+- CSRF protection
+- Bootstrap Icons
+- Animações de hover nos botões
+```
+
+**C. auth/select_account.html**
+```django
+- Extends base.html
+- Lista de contas com radio buttons
+- Exibe: nome, CNPJ, status (ativa/inativa)
+- Botões: "Acessar Conta" e "Sair"
+```
+
+**D. auth/license_expired.html**
+```django
+- Tela standalone (sem base.html)
+- Aviso de conta inativa
+- TODO: Integração com assinaturas
+```
+
+**E. tds_new/dashboard.html**
+```django
+- Extends base.html
+- Cards de estatísticas (4 cards):
+  * Total de Dispositivos (ícone CPU)
+  * Dispositivos Ativos (ícone check)
+  * Alertas Pendentes (ícone bell)
+  * Última Leitura (ícone activity)
+- Card informativo sobre Week 4-5
+- Seção de acesso rápido (3 cards clicáveis)
+- Design responsivo (col-md-6 col-lg-3)
+```
+
+#### 6. URLs Configuradas
+
+**A. tds_new/urls.py (novo arquivo)**
+```python
+app_name = 'tds_new'
+
+Grupos de URLs:
+1. AUTENTICAÇÃO (4 URLs):
+   - auth/login/
+   - auth/logout/
+   - auth/select-account/
+   - auth/license-expired/
+
+2. DASHBOARD (2 URLs):
+   - '' (raiz)
+   - dashboard/
+
+3. CENÁRIOS (8 URLs):
+   - cenario/home/
+   - cenario/dispositivos/
+   - cenario/telemetria/
+   - cenario/alertas/
+   - cenario/relatorios/
+   - cenario/configuracoes/
+   - cenario/conta/
+   - cenario/usuarios/
+
+4. TODO (comentados):
+   - Dispositivos (Week 6-7)
+   - Telemetria (Week 8-9)
+   - Relatórios (Week 10)
+```
+
+**B. prj_tds_new/urls.py (atualizado)**
+```python
+- Include das URLs do tds_new com namespace
+- Remoção do redirect temporário para admin
+- Raiz do site agora aponta para dashboard
+```
+
+#### 7. Arquivos de Views (__init__.py)
+
+**tds_new/views/__init__.py**
+```python
+Exports organizados:
+- Cenários (8 funções)
+- Autenticação (4 funções)
+- Dashboard (1 função)
+- Total: 13 views exportadas
+```
+
+---
+
+### ✅ Validação
+
+```bash
+python manage.py check
+# [CONFIG] tds_new | Ambiente: DEV | DEBUG: True | Arquivo: .env.dev
+# System check identified 2 issues (3 silenced).
+# ✅ Configuração válida
+```
+
+**Warnings não críticos:**
+- `axes.W005`: AXES_USERNAME_CALLABLE (configuração customizada)
+- `staticfiles.W004`: Diretório staticfiles não existe (criado em produção)
+
+---
+
+### 🎨 Design System
+
+**Cores Principais:**
+- Primary: `#0d6efd` (azul Bootstrap)
+- Sidebar: `#212529` (dark)
+- Background: `#f8f9fa` (light gray)
+- Gradient Login: `#667eea → #764ba2` (purple)
+- Gradient Navbar: `#0d6efd → #0a58ca` (blue)
+
+**Componentes:**
+- Cards com shadow e hover effect
+- Badges arredondados (border-radius: 20px)
+- Ícones Bootstrap Icons 1.11.3
+- Font: Segoe UI (fallback: Tahoma, Geneva, Verdana)
+
+---
+
+### 📊 Estrutura de Arquivos Criados
+
+```
+tds_new/
+├── constants.py (NOVO - 107 linhas)
+├── urls.py (NOVO - 58 linhas)
+├── views/
+│   ├── __init__.py (NOVO - 38 linhas)
+│   ├── cenario.py (NOVO - 133 linhas)
+│   ├── auth.py (NOVO - 235 linhas)
+│   └── dashboard.py (NOVO - 41 linhas)
+└── templates/
+    ├── base.html (NOVO - 267 linhas)
+    ├── auth/
+    │   ├── login.html (NOVO - 105 linhas)
+    │   ├── select_account.html (NOVO - 92 linhas)
+    │   └── license_expired.html (NOVO - 53 linhas)
+    └── tds_new/
+        └── dashboard.html (NOVO - 145 linhas)
+
+prj_tds_new/
+└── urls.py (ATUALIZADO - removido redirect temporário)
+```
+
+**Total:** 10 arquivos criados, 1 atualizado ≈ 1.074 linhas de código
+
+---
+
+### 🚀 Próximos Passos - SEMANA 6-7
+
+#### Week 6-7: Módulo de Dispositivos IoT
+- [ ] Criar modelo Dispositivo (SaaSBaseModel)
+- [ ] Implementar CRUD de dispositivos
+- [ ] Forms de cadastro/edição
+- [ ] Templates de lista/detail/form
+- [ ] Validação de dados (MAC address, identificador único)
+- [ ] Filtros de busca e paginação
+- [ ] Testes unitários
+
+---
+
 ## ✅ SEMANA 3: MIDDLEWARE E CONTEXT PROCESSORS (14/02/2026)
 
 **Status:** CONCLUÍDO  
