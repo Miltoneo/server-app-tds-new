@@ -7,9 +7,11 @@ Padrões de nomenclatura (conforme guia):
 - Usar namespace 'tds_new' para isolamento
 
 Criado em: 14/02/2026
+Atualizado em: 17/01/2026 (Week 6-7 - Dispositivos IoT)
 """
 from django.urls import path
 from . import views
+from .views import gateway, dispositivo
 
 app_name = 'tds_new'
 
@@ -41,14 +43,26 @@ urlpatterns = [
     path('cenario/usuarios/', views.cenario_usuarios, name='cenario_usuarios'),
     
     # =============================================================================
+    # GATEWAYS (Week 6-7)
+    # =============================================================================
+    path('gateways/', gateway.GatewayListView.as_view(), name='gateway_list'),
+    path('gateways/novo/', gateway.GatewayCreateView.as_view(), name='gateway_create'),
+    path('gateways/<int:pk>/', gateway.GatewayDetailView.as_view(), name='gateway_detail'),
+    path('gateways/<int:pk>/editar/', gateway.GatewayUpdateView.as_view(), name='gateway_edit'),
+    path('gateways/<int:pk>/excluir/', gateway.GatewayDeleteView.as_view(), name='gateway_delete'),
+    
+    # =============================================================================
+    # DISPOSITIVOS (Week 6-7)
+    # =============================================================================
+    path('dispositivos/', dispositivo.DispositivoListView.as_view(), name='dispositivo_list'),
+    path('dispositivos/novo/', dispositivo.DispositivoCreateView.as_view(), name='dispositivo_create'),
+    path('dispositivos/<int:pk>/', dispositivo.DispositivoDetailView.as_view(), name='dispositivo_detail'),
+    path('dispositivos/<int:pk>/editar/', dispositivo.DispositivoUpdateView.as_view(), name='dispositivo_edit'),
+    path('dispositivos/<int:pk>/excluir/', dispositivo.DispositivoDeleteView.as_view(), name='dispositivo_delete'),
+    
+    # =============================================================================
     # TODO: Adicionar URLs específicas nas próximas weeks
     # =============================================================================
-    # Week 6-7: Dispositivos IoT
-    # path('dispositivos/', views.dispositivo_list, name='dispositivo_list'),
-    # path('dispositivos/novo/', views.dispositivo_create, name='dispositivo_create'),
-    # path('dispositivos/<int:pk>/editar/', views.dispositivo_update, name='dispositivo_update'),
-    # path('dispositivos/<int:pk>/excluir/', views.dispositivo_delete, name='dispositivo_delete'),
-    
     # Week 8-9: Telemetria e Alertas
     # path('telemetria/', views.telemetria_dashboard, name='telemetria_dashboard'),
     # path('telemetria/<int:dispositivo_id>/', views.telemetria_detail, name='telemetria_detail'),

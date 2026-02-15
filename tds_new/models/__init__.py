@@ -2,12 +2,13 @@
 Pacote de modelos do TDS New
 
 Estrutura:
-- base.py: Modelos base (CustomUser, Conta, ContaMembership)
-- dispositivos.py: Modelos de dispositivos IoT (TipoDispositivo, Coletor, Device)
-- leituras.py: Modelos de leituras e telemetria (Leitura, LeituraAgregada)
+- base.py: Modelos base (CustomUser, Conta, ContaMembership, SaaSBaseModel)
+- dispositivos.py: Modelos de dispositivos IoT (Gateway, Dispositivo)
+- telemetria.py: Modelos de leituras e telemetria (LeituraDispositivo, ConsumoMensal)
+- certificados.py: Modelos de certificados X.509 (CertificadoDevice)
 """
 
-# Importa modelos base (Semana 2)
+# Importa modelos base (Week 2)
 from .base import (
     CustomUser,
     Conta,
@@ -19,15 +20,37 @@ from .base import (
     ContaScopedManager,
 )
 
+# Importa modelos de dispositivos IoT (Week 6-7)
+from .dispositivos import (
+    Gateway,
+    Dispositivo,
+)
+
+# Importa modelos de telemetria (Week 6-7)
+from .telemetria import (
+    LeituraDispositivo,
+    ConsumoMensal,
+)
+
+# Importa modelos de certificados (Week 6-7)
+from .certificados import (
+    CertificadoDevice,
+)
+
 # Expor modelos no namespace do módulo
 __all__ = [
-    # Modelos principais
+    # Modelos base
     'CustomUser',
     'Conta',
     'ContaMembership',
-    
-    # Modelos base abstratos
     'SaaSBaseModel',
+    
+    # Modelos IoT
+    'Gateway',
+    'Dispositivo',
+    'LeituraDispositivo',
+    'ConsumoMensal',
+    'CertificadoDevice',
     
     # Mixins
     'BaseTimestampMixin',
@@ -37,8 +60,4 @@ __all__ = [
     # Managers
     'ContaScopedManager',
 ]
-
-# TODO: Implementar dispositivos e leituras (Semanas 4-6)
-# from .dispositivos import TipoDispositivo, Coletor, Device
-# from .leituras import Leitura, LeituraAgregada
 

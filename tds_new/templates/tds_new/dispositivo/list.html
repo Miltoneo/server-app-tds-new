@@ -1,0 +1,208 @@
+{% extends 'layouts/base_cenario_dispositivos.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Estatísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Total de Dispositivos</h6>
+                    <h2 class="card-title">{{ total_dispositivos }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Dispositivos Ativos</h6>
+                    <h2 class="card-title text-success">{{ dispositivos_ativos }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Dispositivos Online</h6>
+                    <h2 class="card-title text-info">{{ dispositivos_online }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <a href="{% url 'tds_new:dispositivo_create' %}" class="btn btn-primary w-100">
+                        <i class="bi bi-plus-circle me-2"></i>Novo Dispositivo
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-funnel me-2"></i>Filtros
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    {{ filter_form.busca.label_tag }}
+                    {{ filter_form.busca }}
+                </div>
+                <div class="col-md-3">
+                    {{ filter_form.gateway.label_tag }}
+                    {{ filter_form.gateway }}
+                </div>
+                <div class="col-md-2">
+                    {{ filter_form.tipo.label_tag }}
+                    {{ filter_form.tipo }}
+                </div>
+                <div class="col-md-2">
+                    {{ filter_form.status.label_tag }}
+                    {{ filter_form.status }}
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="bi bi-search"></i> Buscar
+                    </button>
+                    <a href="{% url 'tds_new:dispositivo_list' %}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lista de Dispositivos -->
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-cpu me-2"></i>Dispositivos Cadastrados
+        </div>
+        <div class="card-body">
+            {% if dispositivos %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Gateway</th>
+                            <th>Código</th>
+                            <th>Nome</th>
+                            <th>Tipo</th>
+                            <th>Status</th>
+                            <th class="text-center">Conexão</th>
+                            <th>Modbus</th>
+                            <th>Última Leitura</th>
+                            <th class="text-end">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dispositivo in dispositivos %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'tds_new:gateway_detail' dispositivo.gateway.pk %}" 
+                                   class="text-decoration-none" 
+                                   title="Ver Gateway">
+                                    <strong>{{ dispositivo.gateway.codigo }}</strong>
+                                </a>
+                            </td>
+                            <td><strong>{{ dispositivo.codigo }}</strong></td>
+                            <td>{{ dispositivo.nome }}</td>
+                            <td>
+                                <span class="badge {% if dispositivo.tipo == 'MEDIDOR' %}bg-primary{% elif dispositivo.tipo == 'SENSOR' %}bg-info{% else %}bg-warning{% endif %}">
+                                    {{ dispositivo.get_tipo_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge {% if dispositivo.status == 'ATIVO' %}bg-success{% elif dispositivo.status == 'MANUTENCAO' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                    {{ dispositivo.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                {% if dispositivo.is_online %}
+                                    <i class="bi bi-wifi text-success" title="Online"></i>
+                                {% else %}
+                                    <i class="bi bi-wifi-off text-danger" title="Offline"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if dispositivo.tipo == 'MEDIDOR' %}
+                                    <small class="text-muted">
+                                        Slave: {{ dispositivo.slave_id }}
+                                        <br>
+                                        Reg: {{ dispositivo.register_modbus }}
+                                    </small>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if dispositivo.last_seen %}
+                                    <small>{{ dispositivo.last_seen|timesince }} atrás</small>
+                                {% else %}
+                                    <span class="text-muted">Nunca</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'tds_new:dispositivo_detail' dispositivo.pk %}" 
+                                   class="btn btn-sm btn-outline-primary" 
+                                   title="Detalhes">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'tds_new:dispositivo_edit' dispositivo.pk %}" 
+                                   class="btn btn-sm btn-outline-secondary" 
+                                   title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'tds_new:dispositivo_delete' dispositivo.pk %}" 
+                                   class="btn btn-sm btn-outline-danger" 
+                                   title="Excluir">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle me-2"></i>
+                Nenhum dispositivo encontrado. 
+                <a href="{% url 'tds_new:dispositivo_create' %}" class="alert-link">Criar o primeiro dispositivo</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Paginação -->
+    {% if is_paginated %}
+    <nav aria-label="Paginação" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.busca %}&busca={{ request.GET.busca }}{% endif %}{% if request.GET.gateway %}&gateway={{ request.GET.gateway }}{% endif %}{% if request.GET.tipo %}&tipo={{ request.GET.tipo }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                    Anterior
+                </a>
+            </li>
+            {% endif %}
+            
+            <li class="page-item active">
+                <span class="page-link">
+                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                </span>
+            </li>
+            
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.busca %}&busca={{ request.GET.busca }}{% endif %}{% if request.GET.gateway %}&gateway={{ request.GET.gateway }}{% endif %}{% if request.GET.tipo %}&tipo={{ request.GET.tipo }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                    Próxima
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

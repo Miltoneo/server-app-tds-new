@@ -1,0 +1,66 @@
+{% extends 'layouts/base_cenario_dispositivos.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Exclusão
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Você tem certeza que deseja excluir este dispositivo?</h5>
+                    
+                    <div class="alert alert-warning">
+                        <strong>Dispositivo: {{ dispositivo.identificador_completo }}</strong>
+                        <br>
+                        <small>Nome: {{ dispositivo.nome }}</small>
+                        <br>
+                        <small>Gateway: {{ dispositivo.gateway.codigo }}</small>
+                        <br>
+                        <small>Tipo: {{ dispositivo.get_tipo_display }}</small>
+                    </div>
+                    
+                    {% if leituras_count %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>OBSERVAÇÃO:</strong> Este dispositivo possui <strong>{{ leituras_count }} leitura(s)</strong> registrada(s) no banco de dados.
+                        <br><br>
+                        As leituras históricas NÃO serão excluídas (elas permanecem no TimescaleDB para fins de auditoria).
+                        <br>
+                        Apenas o registro do dispositivo será removido.
+                    </div>
+                    {% elif leituras_count is None %}
+                    <div class="alert alert-secondary">
+                        <i class="bi bi-info-circle me-2"></i>
+                        TimescaleDB ainda não configurado. Não há leituras históricas para este dispositivo.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle me-2"></i>
+                        Este dispositivo não possui leituras registradas.
+                        <br>
+                        A exclusão pode ser realizada com segurança.
+                    </div>
+                    {% endif %}
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'tds_new:dispositivo_detail' dispositivo.pk %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle me-2"></i>Cancelar
+                            </a>
+                            
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash me-2"></i>Confirmar Exclusão
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

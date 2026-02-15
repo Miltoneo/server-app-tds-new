@@ -346,11 +346,12 @@ class ContaScopedManager(models.Manager):
 # MODELO BASE PARA ISOLAMENTO MULTI-TENANT
 # =============================================================================
 
-class SaaSBaseModel(models.Model):
+class SaaSBaseModel(BaseAuditMixin):
     """
     Modelo base abstrato para todos os modelos que precisam de isolamento por conta.
     
     Garante que todo registro está vinculado a uma conta (tenant).
+    Inclui campos de auditoria (created_at, updated_at, created_by).
     """
     
     class Meta:

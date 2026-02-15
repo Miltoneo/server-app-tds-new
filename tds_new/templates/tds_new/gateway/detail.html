@@ -1,0 +1,245 @@
+{% extends 'layouts/base_cenario_dispositivos.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cabeçalho com ações -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="{% url 'tds_new:gateway_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Voltar
+            </a>
+        </div>
+        <div>
+            <a href="{% url 'tds_new:gateway_edit' gateway.pk %}" class="btn btn-primary me-2">
+                <i class="bi bi-pencil me-2"></i>Editar
+            </a>
+            <a href="{% url 'tds_new:gateway_delete' gateway.pk %}" class="btn btn-danger">
+                <i class="bi bi-trash me-2"></i>Excluir
+            </a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Coluna Esquerda: Informações do Gateway -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong><i class="bi bi-hdd-network me-2"></i>Informações do Gateway</strong>
+                    <span class="badge {% if gateway.is_online %}bg-success{% elif gateway.last_seen %}bg-danger{% else %}bg-secondary{% endif %}">
+                        {{ gateway.status_conexao }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tbody>
+                            <tr>
+                                <th width="40%">Código:</th>
+                                <td><strong>{{ gateway.codigo }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Nome:</th>
+                                <td>{{ gateway.nome }}</td>
+                            </tr>
+                            <tr>
+                                <th>MAC Address:</th>
+                                <td><code>{{ gateway.mac }}</code></td>
+                            </tr>
+                            <tr>
+                                <th>Descrição:</th>
+                                <td>{{ gateway.descricao|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Firmware:</th>
+                                <td>{{ gateway.firmware_version|default:"N/A" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Última Conexão:</th>
+                                <td>
+                                    {% if gateway.last_seen %}
+                                        {{ gateway.last_seen|date:"d/m/Y H:i" }} ({{ gateway.last_seen|timesince }} atrás)
+                                    {% else %}
+                                        <span class="text-muted">Nunca conectado</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Cadastrado em:</th>
+                                <td>{{ gateway.created_at|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <!-- Localização -->
+                    {% if gateway.latitude and gateway.longitude %}
+                    <div class="alert alert-info mt-3">
+                        <i class="bi bi-geo-alt me-2"></i>
+                        <strong>Localização:</strong> {{ gateway.latitude }}, {{ gateway.longitude }}
+                        <br>
+                        <a href="https://www.google.com/maps?q={{ gateway.latitude }},{{ gateway.longitude }}" 
+                           target="_blank" 
+                           class="alert-link">
+                            Ver no Google Maps <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Coluna Direita: Capacidade e Estatísticas -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <strong><i class="bi bi-speedometer2 me-2"></i>Capacidade e Estatísticas</strong>
+                </div>
+                <div class="card-body">
+                    <!-- Capacidade -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0">Dispositivos Conectados</h6>
+                            <span class="badge bg-primary">{{ gateway.dispositivos_ativos }}/{{ gateway.qte_max_dispositivos }}</span>
+                        </div>
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar {% if gateway.percentual_uso >= 90 %}bg-danger{% elif gateway.percentual_uso >= 70 %}bg-warning{% else %}bg-success{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ gateway.percentual_uso }}%;" 
+                                 aria-valuenow="{{ gateway.percentual_uso }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ gateway.percentual_uso }}%
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            {{ gateway.capacidade_disponivel }} porta(s) disponível(is)
+                        </small>
+                    </div>
+                    
+                    <!-- Estatísticas dos Dispositivos -->
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="card bg-light">
+                                <div class="card-body py-2">
+                                    <h4 class="mb-0">{{ gateway.dispositivos_total }}</h4>
+                                    <small class="text-muted">Total</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="card bg-success text-white">
+                                <div class="card-body py-2">
+                                    <h4 class="mb-0">{{ gateway.dispositivos_ativos }}</h4>
+                                    <small>Ativos</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="card bg-secondary text-white">
+                                <div class="card-body py-2">
+                                    <h4 class="mb-0">{{ dispositivos|length|sub:gateway.dispositivos_ativos }}</h4>
+                                    <small>Inativos</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Ação rápida -->
+                    <div class="mt-4">
+                        <a href="{% url 'tds_new:dispositivo_create' %}?gateway={{ gateway.pk }}" 
+                           class="btn btn-success w-100 {% if gateway.capacidade_disponivel == 0 %}disabled{% endif %}">
+                            <i class="bi bi-plus-circle me-2"></i>Adicionar Dispositivo
+                        </a>
+                        {% if gateway.capacidade_disponivel == 0 %}
+                        <small class="text-danger">Capacidade máxima atingida</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lista de Dispositivos -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong><i class="bi bi-cpu me-2"></i>Dispositivos Vinculados ({{ dispositivos|length }})</strong>
+            <a href="{% url 'tds_new:dispositivo_create' %}?gateway={{ gateway.pk }}" 
+               class="btn btn-sm btn-primary {% if gateway.capacidade_disponivel == 0 %}disabled{% endif %}">
+                <i class="bi bi-plus-circle me-1"></i>Novo
+            </a>
+        </div>
+        <div class="card-body">
+            {% if dispositivos %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nome</th>
+                            <th>Tipo</th>
+                            <th>Status</th>
+                            <th class="text-center">Conexão</th>
+                            <th>Última Leitura</th>
+                            <th class="text-end">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dispositivo in dispositivos %}
+                        <tr>
+                            <td><strong>{{ dispositivo.codigo }}</strong></td>
+                            <td>{{ dispositivo.nome }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ dispositivo.get_tipo_display }}</span>
+                            </td>
+                            <td>
+                                <span class="badge {% if dispositivo.status == 'ATIVO' %}bg-success{% elif dispositivo.status == 'MANUTENCAO' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ dispositivo.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                {% if dispositivo.is_online %}
+                                    <i class="bi bi-wifi text-success" title="Online"></i>
+                                {% else %}
+                                    <i class="bi bi-wifi-off text-danger" title="Offline"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if dispositivo.last_seen %}
+                                    {{ dispositivo.last_seen|timesince }} atrás
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'tds_new:dispositivo_detail' dispositivo.pk %}" 
+                                   class="btn btn-sm btn-outline-primary" 
+                                   title="Detalhes">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'tds_new:dispositivo_edit' dispositivo.pk %}" 
+                                   class="btn btn-sm btn-outline-secondary" 
+                                   title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'tds_new:dispositivo_delete' dispositivo.pk %}" 
+                                   class="btn btn-sm btn-outline-danger" 
+                                   title="Excluir">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle me-2"></i>
+                Nenhum dispositivo cadastrado neste gateway.
+                <a href="{% url 'tds_new:dispositivo_create' %}?gateway={{ gateway.pk }}" 
+                   class="alert-link">Adicionar o primeiro dispositivo</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

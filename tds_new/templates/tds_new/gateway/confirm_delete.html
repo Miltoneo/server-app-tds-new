@@ -1,0 +1,63 @@
+{% extends 'layouts/base_cenario_dispositivos.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Exclusão
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Você tem certeza que deseja excluir este gateway?</h5>
+                    
+                    <div class="alert alert-warning">
+                        <strong>Gateway: {{ gateway.codigo }} - {{ gateway.nome }}</strong>
+                        <br>
+                        <small>MAC: {{ gateway.mac }}</small>
+                    </div>
+                    
+                    {% if dispositivos_count > 0 %}
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-circle me-2"></i>
+                        <strong>ATENÇÃO!</strong> Este gateway possui <strong>{{ dispositivos_count }} dispositivo(s)</strong> vinculado(s).
+                        <br><br>
+                        Você NÃO pode excluir este gateway enquanto houver dispositivos vinculados.
+                        <br>
+                        Por favor, remova ou transfira os dispositivos antes de excluir o gateway.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Este gateway não possui dispositivos vinculados.
+                        <br>
+                        A exclusão pode ser realizada com segurança.
+                    </div>
+                    {% endif %}
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'tds_new:gateway_detail' gateway.pk %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle me-2"></i>Cancelar
+                            </a>
+                            
+                            {% if dispositivos_count == 0 %}
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash me-2"></i>Confirmar Exclusão
+                            </button>
+                            {% else %}
+                            <a href="{% url 'tds_new:gateway_detail' gateway.pk %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left me-2"></i>Voltar aos Detalhes
+                            </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

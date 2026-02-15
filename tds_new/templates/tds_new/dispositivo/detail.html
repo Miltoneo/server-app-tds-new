@@ -1,0 +1,227 @@
+{% extends 'layouts/base_cenario_dispositivos.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cabeçalho com ações -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="{% url 'tds_new:dispositivo_list' %}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left me-2"></i>Voltar
+            </a>
+            <a href="{% url 'tds_new:gateway_detail' dispositivo.gateway.pk %}" class="btn btn-outline-primary">
+                <i class="bi bi-hdd-network me-2"></i>Ver Gateway
+            </a>
+        </div>
+        <div>
+            <a href="{% url 'tds_new:dispositivo_edit' dispositivo.pk %}" class="btn btn-primary me-2">
+                <i class="bi bi-pencil me-2"></i>Editar
+            </a>
+            <a href="{% url 'tds_new:dispositivo_delete' dispositivo.pk %}" class="btn btn-danger">
+                <i class="bi bi-trash me-2"></i>Excluir
+            </a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Coluna Esquerda: Informações do Dispositivo -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong><i class="bi bi-cpu me-2"></i>Informações do Dispositivo</strong>
+                    <div>
+                        <span class="badge {% if dispositivo.status == 'ATIVO' %}bg-success{% elif dispositivo.status == 'MANUTENCAO' %}bg-warning text-dark{% else %}bg-secondary{% endif %} me-2">
+                            {{ dispositivo.get_status_display }}
+                        </span>
+                        <span class="badge {% if dispositivo.is_online %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ dispositivo.status_conexao }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tbody>
+                            <tr>
+                                <th width="40%">Identificação Completa:</th>
+                                <td><strong>{{ dispositivo.identificador_completo }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Gateway:</th>
+                                <td>
+                                    <a href="{% url 'tds_new:gateway_detail' dispositivo.gateway.pk %}" class="text-decoration-none">
+                                        {{ dispositivo.gateway.codigo }} - {{ dispositivo.gateway.nome }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Código:</th>
+                                <td><strong>{{ dispositivo.codigo }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Nome:</th>
+                                <td>{{ dispositivo.nome }}</td>
+                            </tr>
+                            <tr>
+                                <th>Tipo:</th>
+                                <td>
+                                    <span class="badge {% if dispositivo.tipo == 'MEDIDOR' %}bg-primary{% elif dispositivo.tipo == 'SENSOR' %}bg-info{% else %}bg-warning text-dark{% endif %}">
+                                        {{ dispositivo.get_tipo_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Modo de Operação:</th>
+                                <td>
+                                    <span class="badge bg-secondary">{{ dispositivo.get_modo_display }}</span>
+                                </td>
+                            </tr>
+                            {% if dispositivo.mac %}
+                            <tr>
+                                <th>MAC Address:</th>
+                                <td><code>{{ dispositivo.mac }}</code></td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th>Descrição:</th>
+                                <td>{{ dispositivo.descricao|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Firmware:</th>
+                                <td>{{ dispositivo.firmware_version|default:"N/A" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Última Conexão:</th>
+                                <td>
+                                    {% if dispositivo.last_seen %}
+                                        {{ dispositivo.last_seen|date:"d/m/Y H:i" }} ({{ dispositivo.last_seen|timesince }} atrás)
+                                    {% else %}
+                                        <span class="text-muted">Nunca conectado</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Cadastrado em:</th>
+                                <td>{{ dispositivo.created_at|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Coluna Direita: Configurações e Status -->
+        <div class="col-lg-6 mb-4">
+            <!-- Configurações Modbus (apenas para MEDIDOR) -->
+            {% if dispositivo.tipo == 'MEDIDOR' %}
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-gear me-2"></i>Configurações Modbus RTU
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th width="50%">Slave ID:</th>
+                                <td><code>{{ dispositivo.slave_id }}</code></td>
+                            </tr>
+                            <tr>
+                                <th>Registro Modbus:</th>
+                                <td><code>{{ dispositivo.register_modbus }}</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Alarmes -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Configuração de Alarmes
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th width="50%">Alarme Diário:</th>
+                                <td>
+                                    {% if dispositivo.val_alarme_dia %}
+                                        <strong>{{ dispositivo.val_alarme_dia }}</strong>
+                                    {% else %}
+                                        <span class="text-muted">Não configurado</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Alarme Mensal:</th>
+                                <td>
+                                    {% if dispositivo.val_alarme_mes %}
+                                        <strong>{{ dispositivo.val_alarme_mes }}</strong>
+                                    {% else %}
+                                        <span class="text-muted">Não configurado</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    {% if not dispositivo.val_alarme_dia and not dispositivo.val_alarme_mes %}
+                    <div class="alert alert-info mt-3 mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Nenhum alarme configurado para este dispositivo.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Últimas Leituras -->
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-bar-chart-line me-2"></i>Últimas Leituras (10 mais recentes)
+        </div>
+        <div class="card-body">
+            {% if leituras %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Valor</th>
+                            <th>Unidade</th>
+                            <th>Payload Raw</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for leitura in leituras %}
+                        <tr>
+                            <td>{{ leitura.time|date:"d/m/Y H:i:s" }}</td>
+                            <td><strong>{{ leitura.valor }}</strong></td>
+                            <td>{{ leitura.unidade|default:"—" }}</td>
+                            <td>
+                                {% if leitura.payload_raw %}
+                                <small class="text-muted">{{ leitura.payload_raw|truncatewords:10 }}</small>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle me-2"></i>
+                {% if leituras is None %}
+                    TimescaleDB não configurado ainda. Execute o script <code>setup_timescaledb.sql</code> para habilitar o histórico de leituras.
+                {% else %}
+                    Nenhuma leitura registrada para este dispositivo.
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
