@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Botão Alocar</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+</head>
+<body class="p-5">
+    <h1>Teste de Renderização do Botão Alocar</h1>
+    <hr>
+    
+    <h3>❓ Você consegue ver os botões abaixo?</h3>
+    
+    <div class="card mt-3">
+        <div class="card-header">
+            <strong>Teste 1: Botão Simples</strong>
+        </div>
+        <div class="card-body">
+            <a href="#" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-arrow-left-right"></i> Alocar
+            </a>
+        </div>
+    </div>
+    
+    <div class="card mt-3">
+        <div class="card-header">
+            <strong>Teste 2: Botão Completo (igual ao template)</strong>
+        </div>
+        <div class="card-body text-end">
+            <a href="/tds_new/admin-sistema/provisionamento/certificado/2/alocar/" 
+               class="btn btn-sm btn-outline-primary" 
+               title="Alocar Gateway para Conta">
+                <i class="bi bi-arrow-left-right"></i> Alocar
+            </a>
+            
+            <button class="btn btn-sm btn-outline-danger" disabled title="Revogação disponível em Week 9 - Fase 3">
+                <i class="bi bi-x-circle"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div class="card mt-3">
+        <div class="card-header">
+            <strong>Teste 3: Tabela Simulada</strong>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Serial Number</th>
+                        <th>MAC Address</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>TEST-AABBCCDDEE01-...</td>
+                        <td>aa:bb:cc:dd:ee:01</td>
+                        <td class="text-end">
+                            <a href="#" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-arrow-left-right"></i> Alocar
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>TEST-AABBCCDDEE02-...</td>
+                        <td>aa:bb:cc:dd:ee:02</td>
+                        <td class="text-end">
+                            <a href="#" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-arrow-left-right"></i> Alocar
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="alert alert-info mt-4">
+        <strong>📝 Instruções:</strong>
+        <ol>
+            <li>Se você vê os botões azuis "Alocar" acima → O problema é no template Django</li>
+            <li>Se NÃO vê os botões → O problema é seu navegador ou Bootstrap não carregou</li>
+            <li>Abra o Console do navegador (F12) e verifique erros</li>
+            <li>Verifique a aba Network (F12) se os arquivos .css carregaram (200 OK)</li>
+        </ol>
+    </div>
+    
+    <div class="alert alert-warning mt-3">
+        <strong>⚙️ Checklist de Troubleshooting:</strong>
+        <ul>
+            <li>✅ Limpar cache (Ctrl+Shift+R)</li>
+            <li>✅ Testar em outro navegador</li>
+            <li>✅ Verificar zoom do navegador (deve estar em 100%)</li>
+            <li>✅ Maximizar janela do navegador</li>
+            <li>✅ Desabilitar extensões do navegador (modo anônimo)</li>
+        </ul>
+    </div>
+</body>
+</html>

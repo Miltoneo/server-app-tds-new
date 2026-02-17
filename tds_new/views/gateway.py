@@ -41,13 +41,13 @@ class GatewayListView(LoginRequiredMixin, ListView):
         Returns:
             QuerySet: Gateways filtrados e anotados
         """
-        conta = self.request.session.get('conta')
+        conta = self.request.conta_ativa
         queryset = Gateway.objects.filter(conta=conta).annotate(
-            dispositivos_ativos=Count('dispositivos', filter=Q(dispositivos__status='ATIVO'))
+            dispositivos_ativos=Count('dispositivo', filter=Q(dispositivo__status='ATIVO'))
         ).order_by('-created_at')
         
         # Aplicar filtros
-        form = GatewayFilterForm(self.request.GET, conta=conta)
+        form = GatewayFilterForm(self.request.GET)
         
         if form.is_valid():
             busca = form.cleaned_data.get('busca')
@@ -82,10 +82,10 @@ class GatewayListView(LoginRequiredMixin, ListView):
             dict: Contexto da view
         """
         context = super().get_context_data(**kwargs)
-        conta = self.request.session.get('conta')
+        conta = self.request.conta_ativa
         
         # Formulário de filtros
-        context['filter_form'] = GatewayFilterForm(self.request.GET, conta=conta)
+        context['filter_form'] = GatewayFilterForm(self.request.GET)
         
         # Estatísticas gerais
         gateways = Gateway.objects.filter(conta=conta)
@@ -120,7 +120,7 @@ class GatewayCreateView(LoginRequiredMixin, CreateView):
             dict: Kwargs do form
         """
         kwargs = super().get_form_kwargs()
-        kwargs['conta'] = self.request.session.get('conta')
+        kwargs['conta'] = self.request.conta_ativa
         return kwargs
     
     def form_valid(self, form):
@@ -134,7 +134,7 @@ class GatewayCreateView(LoginRequiredMixin, CreateView):
             HttpResponse: Redirect para success_url
         """
         gateway = form.save(commit=False)
-        gateway.conta_id = self.request.session.get('conta')
+        gateway.conta = self.request.conta_ativa
         gateway.created_by = self.request.user
         gateway.save()
         
@@ -178,7 +178,7 @@ class GatewayUpdateView(LoginRequiredMixin, UpdateView):
         Returns:
             QuerySet: Gateways da conta ativa
         """
-        conta = self.request.session.get('conta')
+        conta = self.request.conta_ativa
         return Gateway.objects.filter(conta=conta)
     
     def get_form_kwargs(self):
@@ -189,7 +189,7 @@ class GatewayUpdateView(LoginRequiredMixin, UpdateView):
             dict: Kwargs do form
         """
         kwargs = super().get_form_kwargs()
-        kwargs['conta'] = self.request.session.get('conta')
+        kwargs['conta'] = self.request.conta_ativa
         return kwargs
     
     def form_valid(self, form):
@@ -243,7 +243,7 @@ class GatewayDeleteView(LoginRequiredMixin, DeleteView):
         Returns:
             QuerySet: Gateways da conta ativa
         """
-        conta = self.request.session.get('conta')
+        conta = self.request.conta_ativa
         return Gateway.objects.filter(conta=conta)
     
     def post(self, request, *args, **kwargs):
@@ -311,10 +311,10 @@ class GatewayDetailView(LoginRequiredMixin, DetailView):
         Returns:
             QuerySet: Gateways da conta ativa
         """
-        conta = self.request.session.get('conta')
+        conta = self.request.conta_ativa
         return Gateway.objects.filter(conta=conta).annotate(
-            dispositivos_ativos=Count('dispositivos', filter=Q(dispositivos__status='ATIVO')),
-            dispositivos_total=Count('dispositivos')
+            dispositivos_ativos=Count('dispositivo', filter=Q(dispositivo__status='ATIVO')),
+            dispositivos_total=Count('dispositivo')
         )
     
     def get_context_data(self, **kwargs):

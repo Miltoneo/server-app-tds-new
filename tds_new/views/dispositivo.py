@@ -42,7 +42,7 @@ class DispositivoListView(LoginRequiredMixin, ListView):
         Returns:
             QuerySet: Dispositivos filtrados
         """
-        conta = self.request.session.get('conta')
+        conta = self.request.conta_ativa
         queryset = Dispositivo.objects.filter(
             gateway__conta=conta
         ).select_related('gateway').order_by('gateway__codigo', 'codigo')
@@ -82,7 +82,7 @@ class DispositivoListView(LoginRequiredMixin, ListView):
             dict: Contexto da view
         """
         context = super().get_context_data(**kwargs)
-        conta = self.request.session.get('conta')
+        conta = self.request.conta_ativa
         
         # Formulário de filtros
         context['filter_form'] = DispositivoFilterForm(self.request.GET, conta=conta)
@@ -121,7 +121,7 @@ class DispositivoCreateView(LoginRequiredMixin, CreateView):
             dict: Kwargs do form
         """
         kwargs = super().get_form_kwargs()
-        kwargs['conta'] = self.request.session.get('conta')
+        kwargs['conta'] = self.request.conta_ativa
         return kwargs
     
     def form_valid(self, form):
@@ -178,7 +178,7 @@ class DispositivoUpdateView(LoginRequiredMixin, UpdateView):
         Returns:
             QuerySet: Dispositivos da conta ativa
         """
-        conta = self.request.session.get('conta')
+        conta = self.request.conta_ativa
         return Dispositivo.objects.filter(gateway__conta=conta).select_related('gateway')
     
     def get_form_kwargs(self):
@@ -189,7 +189,7 @@ class DispositivoUpdateView(LoginRequiredMixin, UpdateView):
             dict: Kwargs do form
         """
         kwargs = super().get_form_kwargs()
-        kwargs['conta'] = self.request.session.get('conta')
+        kwargs['conta'] = self.request.conta_ativa
         return kwargs
     
     def form_valid(self, form):
@@ -243,7 +243,7 @@ class DispositivoDeleteView(LoginRequiredMixin, DeleteView):
         Returns:
             QuerySet: Dispositivos da conta ativa
         """
-        conta = self.request.session.get('conta')
+        conta = self.request.conta_ativa
         return Dispositivo.objects.filter(gateway__conta=conta).select_related('gateway')
     
     def post(self, request, *args, **kwargs):
@@ -306,7 +306,7 @@ class DispositivoDetailView(LoginRequiredMixin, DetailView):
         Returns:
             QuerySet: Dispositivos da conta ativa
         """
-        conta = self.request.session.get('conta')
+        conta = self.request.conta_ativa
         return Dispositivo.objects.filter(gateway__conta=conta).select_related('gateway')
     
     def get_context_data(self, **kwargs):

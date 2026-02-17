@@ -52,7 +52,7 @@ def cenario_home(request):
 @login_required
 def cenario_dispositivos(request):
     """
-    Cenário de gerenciamento de dispositivos IoT - Week 6-7 IMPLEMENTADO
+    Cenário de gerenciamento de gateways e dispositivos IoT - Week 6-7 IMPLEMENTADO
     Redireciona para lista de gateways (tela inicial do módulo)
     """
     _configurar_cenario(request, Cenarios.DISPOSITIVOS)
@@ -62,12 +62,11 @@ def cenario_dispositivos(request):
 @login_required
 def cenario_telemetria(request):
     """
-    Cenário de monitoramento em tempo real
-    TODO: Implementar na Week 8-9
+    Cenário de monitoramento de telemetria (dispositivos IoT)
+    Redireciona para lista de dispositivos
     """
     _configurar_cenario(request, Cenarios.TELEMETRIA)
-    messages.info(request, 'Módulo de Telemetria será implementado na Week 8-9.')
-    return redirect('tds_new:dashboard')
+    return redirect('tds_new:dispositivo_list')
 
 
 @login_required
