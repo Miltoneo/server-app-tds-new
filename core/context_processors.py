@@ -121,30 +121,4 @@ def usuario_context(request):
         'usuario_pode_editar': usuario_pode_editar,
         'usuario_pode_visualizar': usuario_pode_visualizar,
     }
- 
-                ContaMembership.objects.filter(
-                    user=request.user,
-                    conta_id=conta_id,
-                    is_active=True,
-                    role='admin'
-                ).exists()
-            )
-        else:
-            # Fallback: verifica se é admin em qualquer conta ativa
-            usuario_admin = (
-                request.user.is_superuser or 
-                ContaMembership.objects.filter(
-                    user=request.user,
-                    is_active=True,
-                    role='admin'
-                ).exists()
-            )
-        
-        return {
-            'usuario_atual': request.user,
-            'usuario_admin': usuario_admin,
-        }
-    return {
-        'usuario_atual': None,
-        'usuario_admin': False,
-    }
+

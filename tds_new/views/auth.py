@@ -28,6 +28,7 @@ from django.contrib.auth import get_user_model
 
 from ..models import Conta, ContaMembership
 from ..constants import Cenarios
+from ..forms.auth import SecureLoginForm
 
 User = get_user_model()
 logger = logging.getLogger('tds_new.auth')
@@ -54,35 +55,29 @@ def _get_client_ip(request):
 @csrf_protect
 def login_view(request):
     """
-    View de login simples (Week 4-5)
+    View de login com reCAPTCHA (Week 4-5)
     
     Fluxo:
-    1. Autentica usuário por email/senha
-    2. Se única conta: seleciona automaticamente e redireciona para dashboard
-    3. Se múltiplas contas: redireciona para seleção de conta
-    4. Se nenhuma conta: erro de acesso
-    
-    TODO (Week 8-9):
-    - Adicionar django-axes (rate limiting)
-    - Adicionar CAPTCHA após N tentativas
-    - Auditoria de login
+    1. Valida reCAPTCHA
+    2. Autentica usuário por email/senha
+    3. Se única conta: seleciona automaticamente e redireciona para dashboard
+    4. Se múltiplas contas: redireciona para seleção de conta
+    5. Se nenhuma conta: erro de acesso
     """
     # Redireciona se já autenticado
     if request.user.is_authenticated:
         return redirect('tds_new:dashboard')
     
+    form = SecureLoginForm(request, data=request.POST or None)
+    
     if request.method == 'POST':
-        email = request.POST.get('email', '').strip().lower()
-        password = request.POST.get('password', '')
-        
-        # Autentica usuário
-        user = authenticate(request, username=email, password=password)
-        
-        if user is not None:
+        if form.is_valid():
+            user = form.get_user()
+            
             if not user.is_active:
                 messages.error(request, 'Usuário inativo. Entre em contato com o suporte.')
-                logger.warning(f"Tentativa de login com usuário inativo: {email} | IP: {_get_client_ip(request)}")
-                return render(request, 'auth/login.html')
+                logger.warning(f"Tentativa de login com usuário inativo: {user.email} | IP: {_get_client_ip(request)}")
+                return render(request, 'auth/login.html', {'form': form})
             
             # Faz login
             auth_login(request, user)
@@ -98,8 +93,8 @@ def login_view(request):
                 # Nenhuma conta ativa
                 auth_logout(request)
                 messages.error(request, 'Usuário não possui acesso a nenhuma conta ativa.')
-                logger.warning(f"Login sem conta: {email} | IP: {ip_origem}")
-                return render(request, 'auth/login.html')
+                logger.warning(f"Login sem conta: {user.email} | IP: {ip_origem}")
+                return render(request, 'auth/login.html', {'form': form})
             
             elif memberships.count() == 1:
                 # Uma única conta: seleciona automaticamente
@@ -110,7 +105,7 @@ def login_view(request):
                 if not conta.is_active:
                     auth_logout(request)
                     messages.error(request, f'Conta {conta.name} está inativa.')
-                    logger.warning(f"Login com conta inativa: {email} | Conta: {conta.name} | IP: {ip_origem}")
+                    logger.warning(f"Login com conta inativa: {user.email} | Conta: {conta.name} | IP: {ip_origem}")
                     return redirect('tds_new:license_expired')
                 
                 # Define conta ativa na sessão
@@ -121,21 +116,20 @@ def login_view(request):
                 _configurar_cenario(request, Cenarios.HOME)
                 
                 messages.success(request, f'Bem-vindo(a) à {conta.name}!')
-                logger.info(f"Login bem-sucedido: {email} | IP: {ip_origem} | Conta: {conta.name}")
+                logger.info(f"Login bem-sucedido: {user.email} | IP: {ip_origem} | Conta: {conta.name}")
                 
                 return redirect('tds_new:dashboard')
             
             else:
                 # Múltiplas contas: precisa selecionar
-                logger.info(f"Login bem-sucedido: {email} | IP: {ip_origem} | Múltiplas contas")
+                logger.info(f"Login bem-sucedido: {user.email} | IP: {ip_origem} | Múltiplas contas")
                 return redirect('tds_new:select_account')
-        
         else:
-            # Falha de autenticação
-            messages.error(request, 'Email ou senha incorretos.')
-            logger.warning(f"Falha de login: {email} | IP: {_get_client_ip(request)}")
+            # Form inválido (reCAPTCHA ou credenciais incorretas)
+            messages.error(request, 'Verifique os dados e tente novamente.')
+            logger.warning(f"Falha de login (form inválido) | IP: {_get_client_ip(request)}")
     
-    return render(request, 'auth/login.html')
+    return render(request, 'auth/login.html', {'form': form})
 
 
 @login_required

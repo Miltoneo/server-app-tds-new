@@ -444,7 +444,7 @@ def axes_username_callable(request, credentials):
         return credentials.get('username', None)
     return None
 
-AXES_USERNAME_CALLABLE = 'prj_construtora.settings.axes_username_callable'
+AXES_USERNAME_CALLABLE = 'prj_tds_new.settings.axes_username_callable'
 
 # Resetar contador de tentativas após login bem-sucedido
 AXES_RESET_ON_SUCCESS = True
