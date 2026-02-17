@@ -1,0 +1,139 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ titulo_pagina }} | TDS Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+        }
+        .sidebar-heading {
+            font-size: .75rem;
+            text-transform: uppercase;
+        }
+        .nav-link {
+            color: #333;
+        }
+        .nav-link:hover {
+            color: #007bff;
+        }
+        .nav-link.active {
+            color: #007bff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar Admin (sem filtro de conta) -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'tds_new:admin_dashboard' %}">
+                <i class="bi bi-shield-check me-2"></i>TDS Admin Sistema
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text text-light me-3">
+                    <i class="bi bi-person-circle me-2"></i>{{ user.email }}
+                    {% if user.is_superuser %}
+                        <span class="badge bg-danger ms-2">SUPER ADMIN</span>
+                    {% elif user.is_staff %}
+                        <span class="badge bg-warning ms-2">STAFF</span>
+                    {% endif %}
+                </span>
+                <a class="nav-link text-warning" href="{% url 'tds_new:dashboard' %}">
+                    <i class="bi bi-box-arrow-left me-1"></i>Voltar ao Sistema
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar Admin -->
+            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+                <div class="position-sticky pt-3">
+                    <h6 class="sidebar-heading px-3 mt-4 mb-1 text-muted">
+                        <span>Administração</span>
+                    </h6>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}" 
+                               href="{% url 'tds_new:admin_dashboard' %}">
+                                <i class="bi bi-speedometer2 me-2"></i>Dashboard Global
+                            </a>
+                        </li>
+                    </ul>
+
+                    <h6 class="sidebar-heading px-3 mt-4 mb-1 text-muted">
+                        <span>Provisionamento</span>
+                    </h6>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'certificados' in request.path %}active{% endif %}" 
+                               href="{% url 'tds_new:admin_certificados_list' %}">
+                                <i class="bi bi-shield-check me-2"></i>Certificados
+                            </a>
+                        </li>
+                        <!-- Week 9: Alocação, Importação CSV -->
+                        <li class="nav-item">
+                            <a class="nav-link disabled" href="#">
+                                <i class="bi bi-upload me-2"></i>Importar CSV <small class="text-muted">(Week 9)</small>
+                            </a>
+                        </li>
+                    </ul>
+
+                    <h6 class="sidebar-heading px-3 mt-4 mb-1 text-muted">
+                        <span>Auditoria</span>
+                    </h6>
+                    <ul class="nav flex-column">
+                        <!-- Week 9: Logs e CRL -->
+                        <li class="nav-item">
+                            <a class="nav-link disabled" href="#">
+                                <i class="bi bi-file-earmark-text me-2"></i>Logs do Sistema <small class="text-muted">(Week 9)</small>
+                            </a>
+                        </li>
+                    </ul>
+
+                    <h6 class="sidebar-heading px-3 mt-4 mb-1 text-muted">
+                        <span>Manutenção</span>
+                    </h6>
+                    <ul class="nav flex-column">
+                        <!-- Week 10: OTA, Limpeza -->
+                        <li class="nav-item">
+                            <a class="nav-link disabled" href="#">
+                                <i class="bi bi-tools me-2"></i>Manutenção <small class="text-muted">(Week 10)</small>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Conteúdo Principal -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="pt-3 pb-2 mb-3 border-bottom">
+                    <h4 class="fw-bold text-primary">{{ titulo_pagina }}</h4>
+                </div>
+
+                <!-- Mensagens -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

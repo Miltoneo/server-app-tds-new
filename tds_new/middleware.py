@@ -150,3 +150,40 @@ class SessionDebugMiddleware(MiddlewareMixin):
                 logger.debug(f"Conta ativa: {request.conta_ativa}")
         
         return None
+
+
+class SuperAdminMiddleware(MiddlewareMixin):
+    """
+    Middleware que restringe acesso a URLs administrativas apenas para Super Admins
+    Week 8: Proteção de rotas /admin-sistema/
+    
+    Rotas protegidas:
+    - /tds_new/admin-sistema/*
+    
+    Requisitos:
+    - Usuário autenticado
+    - is_superuser=True OU is_staff=True
+    """
+    
+    def process_request(self, request):
+        # URLs administrativas (exigem super admin)
+        admin_paths = [
+            '/tds_new/admin-sistema/',
+        ]
+        
+        # Verificar se URL requer super admin
+        if any(request.path.startswith(path) for path in admin_paths):
+            # Verificar autenticação
+            if not request.user.is_authenticated:
+                messages.warning(request, 'Faça login para acessar esta área.')
+                return redirect(f"{reverse('tds_new:login')}?next={request.path}")
+            
+            # Verificar permissão de super admin (is_staff ou is_superuser)
+            if not (request.user.is_staff or request.user.is_superuser):
+                messages.error(
+                    request, 
+                    'Acesso negado. Esta área é restrita a administradores do sistema.'
+                )
+                return redirect(reverse('tds_new:dashboard'))
+        
+        return None

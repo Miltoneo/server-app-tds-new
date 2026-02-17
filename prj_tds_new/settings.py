@@ -127,6 +127,9 @@ MIDDLEWARE = [
     'tds_new.middleware.TenantMiddleware',
     'tds_new.middleware.LicenseValidationMiddleware',
     
+    # 🆕 Week 8: Proteção administrativa
+    'tds_new.middleware.SuperAdminMiddleware',
+    
     # Debug Middleware (apenas em desenvolvimento)
     'tds_new.middleware.SessionDebugMiddleware',
 ]

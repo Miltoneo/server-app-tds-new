@@ -21,9 +21,9 @@ class Cenarios:
     }
     
     DISPOSITIVOS = {
-        'menu_nome': 'Dispositivos',
-        'cenario_nome': 'Dispositivos',
-        'titulo_pagina': 'Gerenciamento de Dispositivos IoT'
+        'menu_nome': 'Gateways',
+        'cenario_nome': 'Gateways',
+        'titulo_pagina': 'Gerenciamento de Gateways'
     }
     
     TELEMETRIA = {
@@ -60,6 +60,13 @@ class Cenarios:
         'menu_nome': 'Usuários',
         'cenario_nome': 'Usuários',
         'titulo_pagina': 'Gerenciamento de Usuários'
+    }
+    
+    # 🆕 Week 8: Cenário administrativo do sistema
+    ADMIN_SISTEMA = {
+        'menu_nome': 'Admin Sistema',
+        'cenario_nome': 'Admin Sistema',
+        'titulo_pagina': 'Administração do Sistema TDS'
     }
 
 
@@ -102,9 +109,11 @@ class Permissoes:
     ADMIN = 'admin'
     EDITOR = 'editor'
     VIEWER = 'viewer'
+    SUPER_ADMIN = 'super_admin'  # 🆕 Week 8: Administrador do sistema
     
     CHOICES = [
         (ADMIN, 'Administrador'),
         (EDITOR, 'Editor'),
         (VIEWER, 'Visualizador'),
+        (SUPER_ADMIN, 'Super Admin'),  # 🆕 Week 8
     ]

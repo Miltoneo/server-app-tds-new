@@ -8,10 +8,12 @@ Padrões de nomenclatura (conforme guia):
 
 Criado em: 14/02/2026
 Atualizado em: 17/01/2026 (Week 6-7 - Dispositivos IoT)
+Atualizado em: 17/02/2026 (Week 8 - Admin Sistema)
 """
 from django.urls import path
 from . import views
 from .views import gateway, dispositivo
+from .views.admin import dashboard as admin_dashboard, provisionamento as admin_prov
 
 app_name = 'tds_new'
 
@@ -59,6 +61,29 @@ urlpatterns = [
     path('dispositivos/<int:pk>/', dispositivo.DispositivoDetailView.as_view(), name='dispositivo_detail'),
     path('dispositivos/<int:pk>/editar/', dispositivo.DispositivoUpdateView.as_view(), name='dispositivo_edit'),
     path('dispositivos/<int:pk>/excluir/', dispositivo.DispositivoDeleteView.as_view(), name='dispositivo_delete'),
+    
+    # =============================================================================
+    # ADMIN SISTEMA (Super Admin Only) - Week 8
+    # =============================================================================
+    
+    # Dashboard Global
+    path('admin-sistema/', 
+         admin_dashboard.dashboard_global, 
+         name='admin_dashboard'),
+    
+    # Provisionamento - Certificados
+    path('admin-sistema/provisionamento/certificados/', 
+         admin_prov.CertificadosListView.as_view(), 
+         name='admin_certificados_list'),
+    
+    # Week 9 (planejado): Alocação de gateways, importação CSV, revogação
+    # path('admin-sistema/provisionamento/alocar/<int:gateway_id>/', ...)
+    # path('admin-sistema/provisionamento/importar-csv/', ...)
+    # path('admin-sistema/provisionamento/certificados/<int:certificado_id>/revogar/', ...)
+    
+    # Week 9 (planejado): Auditoria
+    # path('admin-sistema/auditoria/logs/', ...)
+    # path('admin-sistema/auditoria/certificados-revogados/', ...)
     
     # =============================================================================
     # TODO: Adicionar URLs específicas nas próximas weeks
