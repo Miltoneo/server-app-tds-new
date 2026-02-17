@@ -1,0 +1,248 @@
+{% extends 'admin_sistema/base_admin.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            
+            {# Cabeçalho com informações do Gateway #}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-network-wired me-2"></i>
+                        Alocar Gateway: <code class="text-white">{{ gateway.mac }}</code>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {# Informações básicas #}
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-3"><i class="fas fa-info-circle me-2"></i>Informações do Gateway</h6>
+                            <dl class="row mb-0">
+                                <dt class="col-sm-4">Código:</dt>
+                                <dd class="col-sm-8"><strong>{{ gateway.codigo }}</strong></dd>
+                                
+                                <dt class="col-sm-4">Nome:</dt>
+                                <dd class="col-sm-8">{{ gateway.nome }}</dd>
+                                
+                                <dt class="col-sm-4">MAC Address:</dt>
+                                <dd class="col-sm-8"><code>{{ gateway.mac }}</code></dd>
+                                
+                                <dt class="col-sm-4">Firmware:</dt>
+                                <dd class="col-sm-8">
+                                    {% if gateway.firmware_version %}
+                                        <span class="badge bg-secondary">{{ gateway.firmware_version }}</span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                        
+                        {# Status e vínculos #}
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-3"><i class="fas fa-chart-line me-2"></i>Status e Vínculos</h6>
+                            <dl class="row mb-0">
+                                <dt class="col-sm-4">Conta Atual:</dt>
+                                <dd class="col-sm-8">
+                                    {% if gateway.conta %}
+                                        <span class="badge bg-info">{{ gateway.conta.name }}</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>Sem Conta (Órfão)
+                                        </span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-4">Status:</dt>
+                                <dd class="col-sm-8">
+                                    {% if gateway.is_online %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-circle me-1"></i>Online
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-circle me-1"></i>Offline
+                                        </span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-4">Última Conexão:</dt>
+                                <dd class="col-sm-8">
+                                    {% if gateway.last_seen %}
+                                        {{ gateway.last_seen|date:"d/m/Y H:i" }}
+                                    {% else %}
+                                        <span class="text-muted">Nunca</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-4">Dispositivos:</dt>
+                                <dd class="col-sm-8">
+                                    <strong class="{% if dispositivos_vinculados.count > 0 %}text-primary{% endif %}">
+                                        {{ dispositivos_vinculados.count }}
+                                    </strong> dispositivo(s) vinculado(s)
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                    
+                    {# Certificado X.509 #}
+                    <hr class="my-3">
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="text-muted mb-3"><i class="fas fa-certificate me-2"></i>Certificado X.509 (mTLS)</h6>
+                            {% if certificado %}
+                                <div class="alert alert-success mb-0">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <strong>Serial Number:</strong><br>
+                                            <code>{{ certificado.serial_number }}</code>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <strong>Expira em:</strong><br>
+                                            {{ certificado.expires_at|date:"d/m/Y" }}
+                                        </div>
+                                        <div class="col-md-3">
+                                            <strong>Status:</strong><br>
+                                            {% if certificado.is_revoked %}
+                                                <span class="badge bg-danger">Revogado</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Válido</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning mb-0">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Certificado não encontrado!</strong><br>
+                                    Este gateway não possui certificado X.509. A conexão MQTT via mTLS não funcionará.
+                                    <strong>Ação necessária:</strong> Gerar certificado antes de alocar.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {# Alerta de dispositivos vinculados #}
+                    {% if dispositivos_vinculados %}
+                    <hr class="my-3">
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Dispositivos Vinculados:</strong> 
+                        Este gateway possui <strong>{{ dispositivos_vinculados.count }}</strong> dispositivo(s) vinculado(s).
+                        Você pode optar por transferi-los junto ao gateway para a nova conta.
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                Dispositivos: 
+                                {% for disp in dispositivos_vinculados|slice:":5" %}
+                                    <span class="badge bg-light text-dark">{{ disp.codigo }}</span>
+                                {% endfor %}
+                                {% if dispositivos_vinculados.count > 5 %}
+                                    <span class="badge bg-light text-dark">+{{ dispositivos_vinculados.count|add:"-5" }} mais</span>
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {# Formulário de Alocação #}
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-arrow-right me-2"></i>Selecionar Conta Destino</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {# Campo de seleção de conta #}
+                        <div class="mb-4">
+                            <label for="{{ form.conta.id_for_label }}" class="form-label">
+                                {{ form.conta.label }} <span class="text-danger">*</span>
+                            </label>
+                            {{ form.conta }}
+                            <small class="form-text text-muted">{{ form.conta.help_text }}</small>
+                            {% if form.conta.errors %}
+                                <div class="text-danger mt-1">
+                                    {{ form.conta.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        {# Checkbox transferir dispositivos (apenas se houver dispositivos) #}
+                        {% if dispositivos_vinculados %}
+                        <div class="form-check mb-4 p-3 bg-light rounded">
+                            {{ form.transferir_dispositivos }}
+                            <label class="form-check-label" for="{{ form.transferir_dispositivos.id_for_label }}">
+                                <strong>{{ form.transferir_dispositivos.label }}</strong>
+                            </label>
+                            <br>
+                            <small class="form-text text-muted ms-4">
+                                {{ form.transferir_dispositivos.help_text }}
+                            </small>
+                        </div>
+                        {% endif %}
+                        
+                        {# Resumo da operação #}
+                        <div class="alert alert-light border">
+                            <h6 class="mb-2"><i class="fas fa-clipboard-check me-2"></i>Resumo da Operação:</h6>
+                            <ul class="mb-0 ps-4">
+                                <li>Gateway <code>{{ gateway.mac }}</code> será transferido para a conta selecionada</li>
+                                {% if certificado %}
+                                <li>Certificado X.509 <code>{{ certificado.serial_number|slice:":16" }}...</code> será atualizado automaticamente</li>
+                                {% endif %}
+                                {% if dispositivos_vinculados %}
+                                <li>
+                                    <strong>{{ dispositivos_vinculados.count }}</strong> dispositivo(s) 
+                                    <span id="transferencia-status">serão transferidos junto</span>
+                                    (se opção marcada)
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        
+                        {# Botões #}
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'tds_new:admin_certificados_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check-circle me-2"></i>
+                                {% if gateway.conta %}
+                                    Transferir Gateway
+                                {% else %}
+                                    Alocar Gateway
+                                {% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+{# Script para atualizar texto dinamicamente #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkbox = document.getElementById('{{ form.transferir_dispositivos.id_for_label }}');
+    const statusText = document.getElementById('transferencia-status');
+    
+    if (checkbox && statusText) {
+        checkbox.addEventListener('change', function() {
+            if (this.checked) {
+                statusText.textContent = 'serão transferidos junto';
+                statusText.className = 'text-success fw-bold';
+            } else {
+                statusText.textContent = 'permanecem na conta atual';
+                statusText.className = 'text-warning fw-bold';
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}

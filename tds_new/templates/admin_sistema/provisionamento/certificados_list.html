@@ -53,7 +53,7 @@
                             <th>Emissão</th>
                             <th>Expiração</th>
                             <th>Status</th>
-                            <th class="text-end">Ações</th>
+                            <th style="width: 200px;" class="text-end">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -62,8 +62,12 @@
                             <td><code class="small">{{ cert.serial_number|truncatechars:20 }}</code></td>
                             <td><code class="small">{{ cert.mac_address }}</code></td>
                             <td>
-                                <strong>{{ cert.conta.nome_fantasia }}</strong>
-                                <br><small class="text-muted">{{ cert.conta.razao_social }}</small>
+                                {% if cert.conta %}
+                                    <strong>{{ cert.conta.name }}</strong>
+                                    <br><small class="text-muted">CNPJ: {{ cert.conta.cnpj|default:"—" }}</small>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Sem Conta</span>
+                                {% endif %}
                             </td>
                             <td>{{ cert.created_at|date:"d/m/Y H:i" }}</td>
                             <td>
@@ -94,12 +98,17 @@
                                 {% endif %}
                             </td>
                             <td class="text-end">
-                                <button class="btn btn-sm btn-outline-secondary" disabled>
-                                    <i class="bi bi-eye"></i>
-                                </button>
+                                {# Botão Alocar - SEMPRE VISÍVEL (Week 9 - Fase 1) #}
+                                <a href="{% url 'tds_new:admin_alocar_gateway_por_certificado' cert.id %}" 
+                                   class="btn btn-sm btn-outline-primary" 
+                                   title="Alocar Gateway para Conta">
+                                    <i class="bi bi-arrow-left-right"></i> Alocar
+                                </a>
+                                
+                                {# Botão Revogar (Week 9 - Fase 3) #}
                                 {% if not cert.is_revoked %}
-                                <button class="btn btn-sm btn-outline-danger" disabled>
-                                    <i class="bi bi-x-circle"></i> <small>(Week 9)</small>
+                                <button class="btn btn-sm btn-outline-danger" disabled title="Revogação disponível em Week 9 - Fase 3">
+                                    <i class="bi bi-x-circle"></i>
                                 </button>
                                 {% endif %}
                             </td>

@@ -76,8 +76,17 @@ urlpatterns = [
          admin_prov.CertificadosListView.as_view(), 
          name='admin_certificados_list'),
     
-    # Week 9 (planejado): Alocação de gateways, importação CSV, revogação
-    # path('admin-sistema/provisionamento/alocar/<int:gateway_id>/', ...)
+    # Provisionamento - Alocação de Gateways (Week 9 - Fase 1)
+    path('admin-sistema/provisionamento/alocar/<int:gateway_id>/',
+         admin_prov.alocar_gateway_view,
+         name='admin_alocar_gateway'),
+    
+    # Provisionamento - Alocar via Certificado (Week 9 - Fase 1)
+    path('admin-sistema/provisionamento/certificado/<int:certificado_id>/alocar/',
+         admin_prov.alocar_gateway_por_certificado_view,
+         name='admin_alocar_gateway_por_certificado'),
+    
+    # Week 9 (planejado): Importação CSV, revogação
     # path('admin-sistema/provisionamento/importar-csv/', ...)
     # path('admin-sistema/provisionamento/certificados/<int:certificado_id>/revogar/', ...)
     

@@ -41,6 +41,7 @@ class TenantMiddleware(MiddlewareMixin):
         # URLs que não precisam de tenant (usar caminhos diretos é mais confiável)
         exempt_paths = [
             '/admin/',
+            '/tds_new/admin-sistema/',  # Week 8: Rotas administrativas globais (sem tenant)
             '/tds_new/auth/',
             '/tds_new/auth/login/',
             '/tds_new/auth/logout/',
