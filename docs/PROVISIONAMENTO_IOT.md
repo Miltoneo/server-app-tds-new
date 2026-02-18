@@ -1,23 +1,51 @@
 # 🔐 Análise: Estratégias de Provisionamento para Hardware IoT Multi-Plataforma
 
 **Projeto:** TDS New - Sistema de Telemetria e Monitoramento IoT  
-**Data:** 17/02/2026  
-**Versão:** 1.0  
+**Data:** 18/02/2026  
+**Versão:** 1.1 (Atualizado)  
 **Autor:** Equipe TDS New
 
 ---
 
 ## 📋 ÍNDICE
 
-1. [Visão Geral](#visão-geral)
-2. [Contexto do Projeto](#contexto-do-projeto)
-3. [Plataformas Suportadas](#plataformas-suportadas)
-4. [Estratégias de Provisionamento](#estratégias-de-provisionamento)
-5. [Fluxo de Certificação mTLS](#fluxo-de-certificação-mtls)
-6. [Implementação por Plataforma](#implementação-por-plataforma)
-7. [Segurança e Melhores Práticas](#segurança-e-melhores-práticas)
-8. [Automação e Ferramentas](#automação-e-ferramentas)
-9. [Troubleshooting](#troubleshooting)
+1. [Cronograma de Implementação](#-cronograma-de-implementação)
+2. [Visão Geral](#visão-geral)
+3. [Contexto do Projeto](#contexto-do-projeto)
+4. [Plataformas Suportadas](#plataformas-suportadas)
+5. [Estratégias de Provisionamento](#estratégias-de-provisionamento)
+6. [Fluxo de Certificação mTLS](#fluxo-de-certificação-mtls)
+7. [Implementação por Plataforma](#implementação-por-plataforma)
+8. [Segurança e Melhores Práticas](#segurança-e-melhores-práticas)
+9. [Automação e Ferramentas](#automação-e-ferramentas)
+10. [Troubleshooting](#troubleshooting)
+11. [Referências](#referências)
+
+---
+
+## 📅 CRONOGRAMA DE IMPLEMENTAÇÃO
+
+As estratégias descritas neste documento serão implementadas ao longo de 16 semanas conforme o **[ROADMAP.md](ROADMAP.md)**:
+
+| Semana | Entregas | Status | Detalhes |
+|--------|----------|--------|----------|
+| **6-7** | Modelos Django (Gateway, Dispositivo, CertificadoDevice) | 🔵 Planejado | [Ver ROADMAP](ROADMAP.md#week-6-7-gateways--dispositivos-iot) |
+| **8-9** | MQTT Consumer + Telemetria em tempo real | 🔵 Planejado | [Ver ADR-001](architecture/DECISOES.md#adr-001-mqtt-consumer-strategy) |
+| **10-11** | API REST de Provisionamento | 🔵 Planejado | Estratégia 2 (API REST) |
+| **12** | OTA Certificate Renewal System | 🔵 Planejado | [Ver ADR-004](architecture/DECISOES.md#adr-004-ota-certificate-renewal-protocol) |
+| **13-14** | Firmware ESP32/RPi com mTLS | 🔵 Planejado | Seção 7 deste documento |
+| **15** | Provisionamento Zero-Touch | 🔵 Planejado | Estratégia 3 (Bootstrap) |
+
+### 🎯 Decisões Arquiteturais Relacionadas
+
+Este documento implementa as seguintes decisões arquiteturais documentadas em **[architecture/DECISOES.md](architecture/DECISOES.md)**:
+
+- **[ADR-001](architecture/DECISOES.md#adr-001-mqtt-consumer-strategy)**: MQTT Consumer Strategy (Django vs Telegraf)
+- **[ADR-002](architecture/DECISOES.md#adr-002-certificate-management-strategy)**: Certificate Management Strategy (10 anos)
+- **[ADR-003](architecture/DECISOES.md#adr-003-topic-mqtt-sem-conta_id)**: Topic MQTT sem conta_id
+- **[ADR-004](architecture/DECISOES.md#adr-004-ota-certificate-renewal-protocol)**: OTA Certificate Renewal Protocol
+
+**Para cronograma completo:** Ver **[ROADMAP.md](ROADMAP.md)**
 
 ---
 
@@ -85,6 +113,9 @@ Este documento aborda:
 │ • Exibe dashboards e relatórios                                │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+> **📖 Para detalhes sobre o fluxo completo de integração entre camadas:**  
+> Consulte **[architecture/INTEGRACAO.md](architecture/INTEGRACAO.md)** - documentação end-to-end com diagrama de sequência, formato de dados em cada camada, tratamento de erros e métricas de performance (~300ms end-to-end).
 
 ### Modelo de Dados (Django)
 
