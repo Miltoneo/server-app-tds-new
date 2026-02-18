@@ -63,10 +63,10 @@ def cenario_dispositivos(request):
 def cenario_telemetria(request):
     """
     Cenário de monitoramento de telemetria (dispositivos IoT)
-    Redireciona para lista de dispositivos
+    Redireciona para dashboard de telemetria em tempo real
     """
     _configurar_cenario(request, Cenarios.TELEMETRIA)
-    return redirect('tds_new:dispositivo_list')
+    return redirect('tds_new:telemetria_dashboard')
 
 
 @login_required

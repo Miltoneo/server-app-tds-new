@@ -12,7 +12,7 @@ Atualizado em: 17/02/2026 (Week 8 - Admin Sistema)
 """
 from django.urls import path
 from . import views
-from .views import gateway, dispositivo
+from .views import gateway, dispositivo, telemetria
 from .views.admin import dashboard as admin_dashboard, provisionamento as admin_prov
 
 app_name = 'tds_new'
@@ -61,6 +61,14 @@ urlpatterns = [
     path('dispositivos/<int:pk>/', dispositivo.DispositivoDetailView.as_view(), name='dispositivo_detail'),
     path('dispositivos/<int:pk>/editar/', dispositivo.DispositivoUpdateView.as_view(), name='dispositivo_edit'),
     path('dispositivos/<int:pk>/excluir/', dispositivo.DispositivoDeleteView.as_view(), name='dispositivo_delete'),
+    
+    # =============================================================================
+    # TELEMETRIA (Week 10 - Fase 4 Dashboard)
+    # =============================================================================
+    path('telemetria/', telemetria.telemetria_dashboard, name='telemetria_dashboard'),
+    path('telemetria/api/timeline/', telemetria.telemetria_api_grafico_timeline, name='telemetria_api_timeline'),
+    path('telemetria/api/barras/', telemetria.telemetria_api_grafico_barras, name='telemetria_api_barras'),
+    path('telemetria/api/leituras/', telemetria.telemetria_api_ultimas_leituras, name='telemetria_api_leituras'),
     
     # =============================================================================
     # ADMIN SISTEMA (Super Admin Only) - Week 8

@@ -1,0 +1,536 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard de Telemetria - TDS New{% endblock %}
+
+{% block extra_css %}
+<!-- Font Awesome 6.5 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<style>
+    .metric-card {
+        border-left: 4px solid;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .metric-card.primary { border-left-color: #0d6efd; }
+    .metric-card.success { border-left-color: #198754; }
+    .metric-card.warning { border-left-color: #ffc107; }
+    .metric-card.info { border-left-color: #0dcaf0; }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+    .metric-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .metric-icon {
+        font-size: 3rem;
+        opacity: 0.15;
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 2rem;
+    }
+    
+    .filter-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .last-update {
+        font-size: 0.85rem;
+        color: #6c757d;
+        text-align: right;
+    }
+    
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+    }
+    .loading-overlay.show {
+        display: flex;
+    }
+    
+    .table-responsive {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Carregando...</span>
+        </div>
+    </div>
+    
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">
+                <i class="fas fa-chart-line me-2"></i>
+                Dashboard de Telemetria
+            </h2>
+            <p class="text-muted mb-0">Monitoramento em tempo real dos dispositivos IoT</p>
+        </div>
+        <div class="last-update" id="lastUpdate">
+            {% if ultima_atualizacao %}
+                Última atualização: <span class="fw-bold">{{ ultima_atualizacao|date:"d/m/Y H:i:s" }}</span>
+            {% else %}
+                Aguardando dados...
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Filtros -->
+    <div class="filter-section">
+        <form method="GET" id="filterForm" action="">
+            <div class="row g-3 align-items-end">
+                <!-- Período -->
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-calendar-alt me-1"></i> Período
+                    </label>
+                    <select name="periodo" class="form-select" id="periodoSelect">
+                        <option value="24h" {% if periodo_selecionado == '24h' %}selected{% endif %}>Últimas 24 horas</option>
+                        <option value="7d" {% if periodo_selecionado == '7d' %}selected{% endif %}>Últimos 7 dias</option>
+                        <option value="30d" {% if periodo_selecionado == '30d' %}selected{% endif %}>Últimos 30 dias</option>
+                        <option value="custom" {% if periodo_selecionado == 'custom' %}selected{% endif %}>Personalizado</option>
+                    </select>
+                </div>
+                
+                <!-- Dispositivos -->
+                <div class="col-md-5">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-microchip me-1"></i> Dispositivos
+                    </label>
+                    <select name="dispositivos" class="form-select" id="dispositivosSelect" multiple size="1">
+                        <option value="">Todos os dispositivos</option>
+                        {% for dispositivo in todos_dispositivos %}
+                            <option value="{{ dispositivo.id }}" 
+                                {% if dispositivo.id|stringformat:"s" in dispositivos_selecionados %}selected{% endif %}>
+                                {{ dispositivo.codigo }} - {{ dispositivo.nome }} ({{ dispositivo.tipo }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Botões -->
+                <div class="col-md-4 text-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter me-1"></i> Aplicar Filtros
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="btnLimparFiltros">
+                        <i class="fas fa-times me-1"></i> Limpar
+                    </button>
+                    <button type="button" class="btn btn-success" id="btnRefresh">
+                        <i class="fas fa-sync-alt me-1"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Metric Cards -->
+    <div class="row g-4 mb-4">
+        <!-- Total de Leituras -->
+        <div class="col-md-3">
+            <div class="card metric-card primary">
+                <div class="card-body position-relative">
+                    <i class="fas fa-database metric-icon"></i>
+                    <div class="metric-value text-primary" id="metricTotalLeituras">{{ total_leituras|default:"0" }}</div>
+                    <div class="metric-label">Total de Leituras</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Dispositivos Ativos -->
+        <div class="col-md-3">
+            <div class="card metric-card success">
+                <div class="card-body position-relative">
+                    <i class="fas fa-check-circle metric-icon"></i>
+                    <div class="metric-value text-success" id="metricDispositivosAtivos">{{ dispositivos_ativos|default:"0" }}</div>
+                    <div class="metric-label">Dispositivos Ativos</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Gateways Online -->
+        <div class="col-md-3">
+            <div class="card metric-card warning">
+                <div class="card-body position-relative">
+                    <i class="fas fa-wifi metric-icon"></i>
+                    <div class="metric-value text-warning" id="metricGatewaysOnline">{{ gateways_online|default:"0" }}</div>
+                    <div class="metric-label">Gateways Online</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Última Atualização -->
+        <div class="col-md-3">
+            <div class="card metric-card info">
+                <div class="card-body position-relative">
+                    <i class="fas fa-clock metric-icon"></i>
+                    <div class="metric-value text-info" id="metricUltimaAtualizacao" style="font-size: 1rem;">
+                        {% if ultima_atualizacao %}
+                            {{ ultima_atualizacao|date:"H:i:s" }}
+                        {% else %}
+                            --:--:--
+                        {% endif %}
+                    </div>
+                    <div class="metric-label">Última Leitura</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gráficos -->
+    <div class="row g-4 mb-4">
+        <!-- Gráfico de Linha: Timeline -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2 text-primary"></i>
+                        Consumo ao Longo do Tempo
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="chartTimeline"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Gráfico de Barras: Por Dispositivo -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2 text-success"></i>
+                        Consumo por Dispositivo
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="chartBarras"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tabela: Últimas Leituras -->
+    <div class="card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-table me-2 text-info"></i>
+                Últimas Leituras
+            </h5>
+            <span class="badge bg-primary" id="badgeTotalLeituras">{{ ultimas_leituras|length }} registros</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="tabelaLeituras">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th><i class="fas fa-clock me-1"></i> Timestamp</th>
+                            <th><i class="fas fa-microchip me-1"></i> Dispositivo</th>
+                            <th><i class="fas fa-tag me-1"></i> Nome</th>
+                            <th class="text-end"><i class="fas fa-tachometer-alt me-1"></i> Valor</th>
+                            <th><i class="fas fa-ruler me-1"></i> Unidade</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for leitura in ultimas_leituras %}
+                        <tr>
+                            <td>{{ leitura.time|date:"d/m/Y H:i:s" }}</td>
+                            <td><span class="badge bg-secondary">{{ leitura.dispositivo__codigo }}</span></td>
+                            <td>{{ leitura.dispositivo__nome }}</td>
+                            <td class="text-end fw-bold">{{ leitura.valor }}</td>
+                            <td>{{ leitura.unidade }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                                Nenhuma leitura encontrada no período selecionado
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+    // Configuração global dos gráficos
+    let chartTimeline = null;
+    let chartBarras = null;
+    let autoRefreshInterval = null;
+    
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', function() {
+        initCharts();
+        loadChartData();
+        
+        // Auto-refresh a cada 30 segundos
+        autoRefreshInterval = setInterval(refreshData, 30000);
+        
+        // Botões
+        document.getElementById('btnRefresh').addEventListener('click', refreshData);
+        document.getElementById('btnLimparFiltros').addEventListener('click', function() {
+            window.location.href = '{% url "tds_new:telemetria_dashboard" %}';
+        });
+        
+        // Ao mudar período, recarregar gráficos
+        document.getElementById('periodoSelect').addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+    });
+    
+    // Inicializar gráficos vazios
+    function initCharts() {
+        const ctxTimeline = document.getElementById('chartTimeline').getContext('2d');
+        chartTimeline = new Chart(ctxTimeline, {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            title: function(context) {
+                                // Exibe data/hora completa no tooltip
+                                const index = context[0].dataIndex;
+                                const labelsOriginais = context[0].chart.data.labelsOriginais;
+                                return labelsOriginais ? formatDateTime(labelsOriginais[index]) : context[0].label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Valor' },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        title: { display: true, text: 'Tempo' },
+                        grid: {
+                            display: true,
+                            color: 'rgba(0, 0, 0, 0.1)',
+                            lineWidth: 2,
+                            drawBorder: true,
+                            drawOnChartArea: true,
+                            drawTicks: true
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45,
+                            autoSkip: false,
+                            font: {
+                                size: 10,
+                                weight: 'bold'
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        const ctxBarras = document.getElementById('chartBarras').getContext('2d');
+        chartBarras = new Chart(ctxBarras, {
+            type: 'bar',
+            data: { labels: [], datasets: [] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Consumo Total' }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Carregar dados dos gráficos via AJAX
+    function loadChartData() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Gráfico de Timeline
+        fetch('{% url "tds_new:telemetria_api_timeline" %}?' + urlParams)
+            .then(response => response.json())
+            .then(data => {
+                // Armazena labels originais para o tooltip
+                chartTimeline.data.labelsOriginais = data.labels;
+                // Usa formato compacto para eixo X
+                chartTimeline.data.labels = data.labels.map(formatHora);
+                chartTimeline.data.datasets = data.datasets;
+                chartTimeline.update();
+            })
+            .catch(error => console.error('Erro ao carregar timeline:', error));
+        
+        // Gráfico de Barras
+        fetch('{% url "tds_new:telemetria_api_barras" %}?' + urlParams)
+            .then(response => response.json())
+            .then(data => {
+                chartBarras.data.labels = data.labels;
+                chartBarras.data.datasets = data.datasets;
+                chartBarras.update();
+            })
+            .catch(error => console.error('Erro ao carregar barras:', error));
+    }
+    
+    // Atualizar todos os dados (AJAX polling)
+    function refreshData() {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        loadingOverlay.classList.add('show');
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Recarregar gráficos
+        loadChartData();
+        
+        // Atualizar tabela de leituras
+        fetch('{% url "tds_new:telemetria_api_leituras" %}?' + urlParams)
+            .then(response => response.json())
+            .then(data => {
+                updateTabelaLeituras(data.leituras);
+                updateLastUpdate(data.timestamp);
+                loadingOverlay.classList.remove('show');
+            })
+            .catch(error => {
+                console.error('Erro ao atualizar tabela:', error);
+                loadingOverlay.classList.remove('show');
+            });
+    }
+    
+    // Atualizar tabela de leituras
+    function updateTabelaLeituras(leituras) {
+        const tbody = document.querySelector('#tabelaLeituras tbody');
+        
+        if (leituras.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                        Nenhuma leitura encontrada
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = leituras.map(leitura => `
+            <tr>
+                <td>${formatDateTime(leitura.time)}</td>
+                <td><span class="badge bg-secondary">${leitura.dispositivo}</span></td>
+                <td>${leitura.nome}</td>
+                <td class="text-end fw-bold">${leitura.valor.toFixed(2)}</td>
+                <td>${leitura.unidade}</td>
+            </tr>
+        `).join('');
+        
+        document.getElementById('badgeTotalLeituras').textContent = `${leituras.length} registros`;
+    }
+    
+    // Atualizar timestamp da última atualização
+    function updateLastUpdate(timestamp) {
+        const dt = new Date(timestamp);
+        const formatted = dt.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        document.getElementById('lastUpdate').innerHTML = 
+            `Última atualização: <span class="fw-bold">${formatted}</span>`;
+        
+        document.getElementById('metricUltimaAtualizacao').textContent = 
+            dt.toLocaleTimeString('pt-BR');
+    }
+    
+    // Formatar ISO datetime para pt-BR
+    function formatDateTime(isoString) {
+        const dt = new Date(isoString);
+        return dt.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+    
+    // Formatar apenas hora para eixo X (mais compacto)
+    function formatHora(isoString) {
+        const dt = new Date(isoString);
+        const dia = dt.getDate().toString().padStart(2, '0');
+        const mes = (dt.getMonth() + 1).toString().padStart(2, '0');
+        const hora = dt.getHours().toString().padStart(2, '0');
+        return `${dia}/${mes} ${hora}h`;
+    }
+    
+    // Cleanup ao sair da página
+    window.addEventListener('beforeunload', function() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+        }
+    });
+</script>
+{% endblock %}
