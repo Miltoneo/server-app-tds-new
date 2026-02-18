@@ -30,31 +30,31 @@ def create_mqtt_client():
     try:
         MQTTConfig.validate()
     except ValueError as e:
-        logger.error(f"❌ Configuração MQTT inválida: {e}")
+        logger.error(f"[ERROR] Configuração MQTT inválida: {e}")
         raise
     
     # Criar cliente MQTT (protocolo v3.1.1)
     client = mqtt.Client(
         client_id=MQTTConfig.CLIENT_ID,
         protocol=mqtt.MQTTv311,
-        clean_session=False  # Manter sessão (QoS 1)
+        clean_session=True  # TODO: False para QoS 1 persistente (após fix de múltiplas instâncias)
     )
     
     # Configurar TLS/mTLS (se habilitado)
     if MQTTConfig.USE_TLS:
-        logger.info("🔐 Configurando mTLS...")
+        logger.info("[SETUP] Configurando mTLS...")
         try:
             client.tls_set(
                 ca_certs=MQTTConfig.CA_CERTS,
                 certfile=MQTTConfig.CERTFILE,
                 keyfile=MQTTConfig.KEYFILE
             )
-            logger.info(f"✅ Certificados TLS carregados:")
+            logger.info(f"[OK] Certificados TLS carregados:")
             logger.info(f"   - CA: {MQTTConfig.CA_CERTS}")
             logger.info(f"   - Cert: {MQTTConfig.CERTFILE}")
             logger.info(f"   - Key: {MQTTConfig.KEYFILE}")
         except Exception as e:
-            logger.error(f"❌ Erro ao configurar TLS: {e}")
+            logger.error(f"[ERROR] Erro ao configurar TLS: {e}")
             raise
     
     # Configurar autenticação username/password (se configurado - desenvolvimento)
@@ -99,8 +99,8 @@ def on_connect(client, userdata, flags, rc):
         rc: Result code (0 = sucesso)
     """
     if rc == 0:
-        logger.info("✅ Conectado ao broker MQTT com sucesso")
-        logger.info(f"📌 Flags: {flags}")
+        logger.info("[OK] Conectado ao broker MQTT com sucesso")
+        logger.info(f"[INFO] Flags: {flags}")
         
         # Subscribe ao topic de telemetria (wildcard para todos os gateways)
         topic = MQTTConfig.TOPIC_TELEMETRY
@@ -109,10 +109,10 @@ def on_connect(client, userdata, flags, rc):
         result, mid = client.subscribe(topic, qos=qos)
         
         if result == mqtt.MQTT_ERR_SUCCESS:
-            logger.info(f"📡 Subscribe solicitado: {topic} (QoS {qos})")
+            logger.info(f"[LISTEN] Subscribe solicitado: {topic} (QoS {qos})")
             logger.info(f"   Message ID: {mid}")
         else:
-            logger.error(f"❌ Erro ao solicitar subscribe: {result}")
+            logger.error(f"[ERROR] Erro ao solicitar subscribe: {result}")
     else:
         error_messages = {
             1: "Connection refused - incorrect protocol version",
@@ -122,7 +122,7 @@ def on_connect(client, userdata, flags, rc):
             5: "Connection refused - not authorized"
         }
         error_msg = error_messages.get(rc, f"Unknown error code: {rc}")
-        logger.error(f"❌ Falha na conexão MQTT: {error_msg}")
+        logger.error(f"[ERROR] Falha na conexão MQTT: {error_msg}")
 
 
 # ==============================================================================
@@ -139,8 +139,8 @@ def on_subscribe(client, userdata, mid, granted_qos):
         mid: Message ID do subscribe
         granted_qos: QoS garantido pelo broker
     """
-    logger.info(f"✅ Subscribe confirmado (mid={mid}, QoS={granted_qos[0]})")
-    logger.info(f"🎯 Aguardando mensagens em: {MQTTConfig.TOPIC_TELEMETRY}")
+    logger.info(f"[OK] Subscribe confirmado (mid={mid}, QoS={granted_qos[0]})")
+    logger.info(f"[LISTEN] Aguardando mensagens em: {MQTTConfig.TOPIC_TELEMETRY}")
 
 
 # ==============================================================================
@@ -158,45 +158,45 @@ def on_message(client, userdata, msg):
     """
     try:
         # Log de recebimento
-        logger.info(f"📨 Mensagem recebida: {msg.topic} ({len(msg.payload)} bytes)")
+        logger.info(f"[MSG] Mensagem recebida: {msg.topic} ({len(msg.payload)} bytes)")
         
         # Extrair MAC address do topic
         # Formato esperado: tds_new/devices/<MAC>/telemetry
         parts = msg.topic.split('/')
         
         if len(parts) != 4:
-            logger.error(f"❌ Topic inválido: {msg.topic} (esperado 4 partes, recebido {len(parts)})")
+            logger.error(f"[ERROR] Topic inválido: {msg.topic} (esperado 4 partes, recebido {len(parts)})")
             return
         
         if parts[0] != 'tds_new' or parts[1] != 'devices' or parts[3] != 'telemetry':
-            logger.error(f"❌ Formato de topic incorreto: {msg.topic}")
+            logger.error(f"[ERROR] Formato de topic incorreto: {msg.topic}")
             return
         
         mac_address = parts[2]
-        logger.debug(f"🔍 MAC extraído do topic: {mac_address}")
+        logger.debug(f"[DEBUG] MAC extraído do topic: {mac_address}")
         
         # Lookup de Gateway (resolve conta_id)
         try:
             gateway = Gateway.objects.select_related('conta').get(mac=mac_address)
-            logger.debug(f"✅ Gateway encontrado: {gateway.codigo} (conta={gateway.conta.nome})")
+            logger.debug(f"[OK] Gateway encontrado: {gateway.codigo} (conta={gateway.conta.name})")
         except Gateway.DoesNotExist:
-            logger.warning(f"⚠️ Gateway não encontrado: {mac_address}")
+            logger.warning(f"[WARN] Gateway não encontrado: {mac_address}")
             logger.warning(f"   Sugestão: Cadastrar gateway com MAC {mac_address} no sistema")
             return
         except Exception as e:
-            logger.error(f"❌ Erro ao buscar gateway: {e}")
+            logger.error(f"[ERROR] Erro ao buscar gateway: {e}")
             return
         
         # Parse JSON payload
         try:
             payload = json.loads(msg.payload.decode('utf-8'))
-            logger.debug(f"📦 Payload JSON: {json.dumps(payload, indent=2)}")
+            logger.debug(f"[DATA] Payload JSON: {json.dumps(payload, indent=2)}")
         except json.JSONDecodeError as e:
-            logger.error(f"❌ JSON inválido: {e}")
+            logger.error(f"[ERROR] JSON inválido: {e}")
             logger.error(f"   Payload recebido: {msg.payload[:200]}")  # Primeiros 200 bytes
             return
         except Exception as e:
-            logger.error(f"❌ Erro ao decodificar payload: {e}")
+            logger.error(f"[ERROR] Erro ao decodificar payload: {e}")
             return
         
         # Processar telemetria via service layer
@@ -208,19 +208,19 @@ def on_message(client, userdata, msg):
             
             resultado = service.processar_telemetria(payload)
             
-            logger.info(f"✅ Telemetria processada com sucesso:")
+            logger.info(f"[OK] Telemetria processada com sucesso:")
             logger.info(f"   - Leituras criadas: {resultado['leituras_criadas']}")
             logger.info(f"   - Timestamp: {resultado['timestamp']}")
             logger.info(f"   - Gateway: {gateway.codigo}")
-            logger.info(f"   - Conta: {gateway.conta.nome}")
+            logger.info(f"   - Conta: {gateway.conta.name}")
             
         except ValueError as e:
-            logger.error(f"❌ Validação falhou: {e}")
+            logger.error(f"[ERROR] Validação falhou: {e}")
         except Exception as e:
-            logger.exception(f"💥 Erro ao processar telemetria: {e}")
+            logger.exception(f"[CRITICAL] Erro ao processar telemetria: {e}")
     
     except Exception as e:
-        logger.exception(f"💥 Erro crítico no callback on_message: {e}")
+        logger.exception(f"[CRITICAL] Erro crítico no callback on_message: {e}")
 
 
 # ==============================================================================
@@ -237,10 +237,10 @@ def on_disconnect(client, userdata, rc):
         rc: Result code (0 = desconexão limpa)
     """
     if rc == 0:
-        logger.info("👋 Desconexão limpa do broker MQTT")
+        logger.info("[INFO] Desconexão limpa do broker MQTT")
     else:
-        logger.warning(f"⚠️ Desconexão inesperada (rc={rc})")
-        logger.warning(f"🔄 Auto-reconnect habilitado (min={MQTTConfig.RECONNECT_DELAY_MIN}s, max={MQTTConfig.RECONNECT_DELAY_MAX}s)")
+        logger.warning(f"[WARN] Desconexão inesperada (rc={rc})")
+        logger.warning(f"[INFO] Auto-reconnect habilitado (min={MQTTConfig.RECONNECT_DELAY_MIN}s, max={MQTTConfig.RECONNECT_DELAY_MAX}s)")
 
 
 # ==============================================================================

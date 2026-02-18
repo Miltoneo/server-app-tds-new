@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 # Configurações
 BROKER_HOST = "localhost"
 BROKER_PORT = 1883
+BROKER_USER = "admin"  # Usar admin para testes
+BROKER_PASSWORD = "admin"
 MAC_ADDRESS = "aa:bb:cc:dd:ee:ff"  # Gateway fictício para teste
 TOPIC = f"tds_new/devices/{MAC_ADDRESS}/telemetry"
 
@@ -56,6 +58,9 @@ def main():
     # Criar cliente
     client = mqtt.Client(client_id="test_simulator")
     client.on_publish = on_publish
+    
+    # Configurar autenticação
+    client.username_pw_set(BROKER_USER, BROKER_PASSWORD)
     
     try:
         # Conectar

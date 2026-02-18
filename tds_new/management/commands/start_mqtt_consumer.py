@@ -50,7 +50,7 @@ class Command(BaseCommand):
         if options['debug']:
             logging.getLogger('mqtt_consumer').setLevel(logging.DEBUG)
             logging.getLogger('telemetry_service').setLevel(logging.DEBUG)
-            self.stdout.write(self.style.NOTICE("🐛 Modo DEBUG habilitado"))
+            self.stdout.write(self.style.NOTICE("[DEBUG] Modo DEBUG habilitado"))
         
         # Override de configurações via CLI (se fornecido)
         broker_host = options.get('broker') or MQTTConfig.BROKER_HOST
@@ -65,30 +65,30 @@ class Command(BaseCommand):
         self.stdout.write("")
         
         # Exibir configurações
-        self.stdout.write(self.style.NOTICE("📋 Configurações:"))
-        self.stdout.write(f"   • Broker: {broker_host}:{broker_port}")
-        self.stdout.write(f"   • Client ID: {MQTTConfig.CLIENT_ID}")
-        self.stdout.write(f"   • Topic: {MQTTConfig.TOPIC_TELEMETRY}")
-        self.stdout.write(f"   • QoS: {MQTTConfig.QOS_SUBSCRIBE}")
-        self.stdout.write(f"   • TLS: {'Habilitado ✅' if MQTTConfig.USE_TLS else 'Desabilitado ⚠️'}")
-        self.stdout.write(f"   • Keepalive: {MQTTConfig.KEEPALIVE}s")
+        self.stdout.write(self.style.NOTICE("[INFO] Configuracoes:"))
+        self.stdout.write(f"   * Broker: {broker_host}:{broker_port}")
+        self.stdout.write(f"   * Client ID: {MQTTConfig.CLIENT_ID}")
+        self.stdout.write(f"   * Topic: {MQTTConfig.TOPIC_TELEMETRY}")
+        self.stdout.write(f"   * QoS: {MQTTConfig.QOS_SUBSCRIBE}")
+        self.stdout.write(f"   * TLS: {'Habilitado [OK]' if MQTTConfig.USE_TLS else 'Desabilitado [WARN]'}")
+        self.stdout.write(f"   * Keepalive: {MQTTConfig.KEEPALIVE}s")
         self.stdout.write("")
         
         # Criar cliente MQTT
         try:
-            self.stdout.write(self.style.NOTICE("🔧 Criando cliente MQTT..."))
+            self.stdout.write(self.style.NOTICE("[SETUP] Criando cliente MQTT..."))
             client = create_mqtt_client()
-            self.stdout.write(self.style.SUCCESS("   ✅ Cliente criado"))
+            self.stdout.write(self.style.SUCCESS("   [OK] Cliente criado"))
         except Exception as e:
             raise CommandError(f"Erro ao criar cliente MQTT: {e}")
         
         # Registrar handler para SIGINT/SIGTERM (graceful shutdown)
         def signal_handler(sig, frame):
             self.stdout.write("")
-            self.stdout.write(self.style.WARNING("👋 Sinal de interrupção recebido"))
-            self.stdout.write(self.style.NOTICE("🛑 Desconectando do broker..."))
+            self.stdout.write(self.style.WARNING("[SIGNAL] Sinal de interrupcao recebido"))
+            self.stdout.write(self.style.NOTICE("[STOP] Desconectando do broker..."))
             client.disconnect()
-            self.stdout.write(self.style.SUCCESS("✅ Consumer encerrado com sucesso"))
+            self.stdout.write(self.style.SUCCESS("[OK] Consumer encerrado com sucesso"))
             sys.exit(0)
         
         signal.signal(signal.SIGINT, signal_handler)
@@ -96,13 +96,13 @@ class Command(BaseCommand):
         
         # Conectar ao broker
         try:
-            self.stdout.write(self.style.NOTICE(f"🔗 Conectando ao broker {broker_host}:{broker_port}..."))
+            self.stdout.write(self.style.NOTICE(f"[CONNECT] Conectando ao broker {broker_host}:{broker_port}..."))
             client.connect(
                 host=broker_host,
                 port=broker_port,
                 keepalive=MQTTConfig.KEEPALIVE
             )
-            self.stdout.write(self.style.SUCCESS("   ✅ Conexão iniciada"))
+            self.stdout.write(self.style.SUCCESS("   [OK] Conexao iniciada"))
         except Exception as e:
             raise CommandError(f"Erro ao conectar ao broker: {e}")
         
@@ -111,7 +111,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("╔═══════════════════════════════════════════════════╗"))
         self.stdout.write(self.style.SUCCESS("║   CONSUMER ATIVO - Aguardando mensagens          ║"))
         self.stdout.write(self.style.SUCCESS("╚═══════════════════════════════════════════════════╝"))
-        self.stdout.write(self.style.NOTICE("📡 Pressione Ctrl+C para encerrar"))
+        self.stdout.write(self.style.NOTICE("[LISTEN] Pressione Ctrl+C para encerrar"))
         self.stdout.write("")
         
         try:
@@ -119,11 +119,11 @@ class Command(BaseCommand):
             client.loop_forever()
         except KeyboardInterrupt:
             self.stdout.write("")
-            self.stdout.write(self.style.WARNING("⚠️ Interrupção via teclado"))
+            self.stdout.write(self.style.WARNING("[WARN] Interrupcao via teclado"))
         except Exception as e:
             raise CommandError(f"Erro no loop MQTT: {e}")
         finally:
             # Cleanup
-            self.stdout.write(self.style.NOTICE("🧹 Limpeza final..."))
+            self.stdout.write(self.style.NOTICE("[CLEANUP] Limpeza final..."))
             client.disconnect()
-            self.stdout.write(self.style.SUCCESS("✅ Desconectado do broker"))
+            self.stdout.write(self.style.SUCCESS("[OK] Desconectado do broker"))

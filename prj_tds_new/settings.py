@@ -573,3 +573,27 @@ WEBHOOK_URL = env('WEBHOOK_URL', default='')
 ASSINATURA_VALIDATION_ENABLED = env.bool('ASSINATURA_VALIDATION_ENABLED', default=True)
 ASSINATURA_GRACE_PERIOD_DAYS = env.int('ASSINATURA_GRACE_PERIOD_DAYS', default=7)
 ASSINATURA_ALLOW_GRACE_PERIOD = env.bool('ASSINATURA_ALLOW_GRACE_PERIOD', default=True)
+
+# =============================================================================
+# MQTT BROKER - CONFIGURAÇÕES DE TELEMETRIA IOT
+# =============================================================================
+# Configurações do broker MQTT (Mosquitto)
+MQTT_BROKER_HOST = env('MQTT_BROKER_HOST', default='localhost')
+MQTT_BROKER_PORT = env.int('MQTT_BROKER_PORT', default=1883)
+MQTT_BROKER_PORT_TLS = env.int('MQTT_BROKER_PORT_TLS', default=8883)
+
+# Autenticação do Consumer Django (ambiente sem mTLS)
+MQTT_BROKER_USER = env('MQTT_BROKER_USER', default=None)
+MQTT_BROKER_PASSWORD = env('MQTT_BROKER_PASSWORD', default=None)
+
+# Topics e prefixos
+MQTT_TOPIC_PREFIX = env('MQTT_TOPIC_PREFIX', default='tds_new/devices')
+
+# TLS/mTLS (certificados X.509) - apenas produção
+MQTT_USE_TLS = env.bool('MQTT_USE_TLS', default=False)
+MQTT_CA_CERTS = env('MQTT_CA_CERTS', default='/app/certs/ca.crt')
+MQTT_CERTFILE = env('MQTT_CERTFILE', default='/app/certs/django-consumer-cert.pem')
+MQTT_KEYFILE = env('MQTT_KEYFILE', default='/app/certs/django-consumer-key.pem')
+
+# Keepalive (em segundos)
+MQTT_KEEPALIVE = env.int('MQTT_KEEPALIVE', default=60)
