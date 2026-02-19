@@ -1,0 +1,175 @@
+{% extends 'admin_sistema/base_admin.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'tds_new:admin_certificados_list' %}">Certificados</a></li>
+            <li class="breadcrumb-item active">Revogar Certificado</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-7">
+            <!-- Alerta de ação destrutiva -->
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-octagon-fill me-2 fs-5"></i>
+                <strong>Ação Irreversível!</strong>
+                A revogação bloqueia imediatamente o dispositivo no broker MQTT.
+                O certificado revogado <strong>não pode ser restaurado</strong>.
+                Para que o dispositivo volte a funcionar, será necessário gerar um novo certificado e gravá-lo no hardware.
+            </div>
+
+            <!-- Informações do certificado -->
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <i class="bi bi-shield-x me-2"></i>
+                    <strong>Certificado a Revogar</strong>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <th class="text-muted" style="width:40%">Device ID</th>
+                                    <td><code>{{ certificado.device_id|default:"—" }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">MAC Address</th>
+                                    <td><code>{{ certificado.mac_address }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Conta</th>
+                                    <td><strong>{{ certificado.conta.name }}</strong></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <th class="text-muted" style="width:40%">Serial</th>
+                                    <td><code class="small">{{ certificado.serial_number|truncatechars:24 }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Emitido em</th>
+                                    <td>{{ certificado.issued_at|date:"d/m/Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Expira em</th>
+                                    <td>{{ certificado.expires_at|date:"d/m/Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Status</th>
+                                    <td>
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle me-1"></i>Ativo
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulário de revogação -->
+            <div class="card">
+                <div class="card-header">
+                    <strong><i class="bi bi-x-circle me-2"></i>Confirmar Revogação</strong>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <!-- Motivo -->
+                        <div class="mb-3">
+                            <label for="{{ form.motivo.id_for_label }}" class="form-label fw-bold">
+                                {{ form.motivo.label }} <span class="text-danger">*</span>
+                            </label>
+                            {{ form.motivo }}
+                            {% if form.motivo.errors %}
+                                <div class="text-danger small mt-1">{{ form.motivo.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Notas -->
+                        <div class="mb-3">
+                            <label for="{{ form.notas.id_for_label }}" class="form-label">
+                                {{ form.notas.label }}
+                            </label>
+                            {{ form.notas }}
+                            <div class="form-text">{{ form.notas.help_text }}</div>
+                            {% if form.notas.errors %}
+                                <div class="text-danger small mt-1">{{ form.notas.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Confirmação -->
+                        <div class="mb-4 p-3 border border-danger rounded">
+                            <div class="form-check">
+                                {{ form.confirmacao }}
+                                <label class="form-check-label text-danger fw-bold"
+                                       for="{{ form.confirmacao.id_for_label }}">
+                                    {{ form.confirmacao.label }}
+                                </label>
+                                <div class="form-text">{{ form.confirmacao.help_text }}</div>
+                                {% if form.confirmacao.errors %}
+                                    <div class="text-danger small mt-1">{{ form.confirmacao.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-x-circle me-2"></i>Revogar Certificado
+                            </button>
+                            <a href="{% url 'tds_new:admin_certificados_list' %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Passo adicional: CRL -->
+            <div class="alert alert-warning mt-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Passo adicional necessário após revogação:</strong>
+                <br>
+                O broker MQTT Mosquitto usa uma CRL (Certificate Revocation List).
+                Após revogar, regenere a CRL e recarregue o broker:
+                <pre class="bg-dark text-white p-2 rounded small mt-2">openssl ca -gencrl -out /etc/mosquitto/crl.pem -keyfile certs/ca/ca.key -cert certs/ca/ca.crt
+sudo systemctl reload mosquitto</pre>
+            </div>
+        </div>
+
+        <!-- Painel lateral -->
+        <div class="col-lg-5">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <i class="bi bi-question-circle me-2"></i>Por que revogar?
+                </div>
+                <div class="card-body small">
+                    <dl>
+                        <dt>COMPROMISED / KEY_COMPROMISE</dt>
+                        <dd class="text-muted">Dispositivo ou chave privada comprometida/roubada. Use imediatamente.</dd>
+
+                        <dt>SUPERSEDED</dt>
+                        <dd class="text-muted">Substituição normal por novo certificado (renovação).</dd>
+
+                        <dt>AFFILIATION_CHANGED</dt>
+                        <dd class="text-muted">Transferência de conta ou mudança de cliente.</dd>
+
+                        <dt>CESSATION</dt>
+                        <dd class="text-muted">Dispositivo descontinuado ou fora de uso.</dd>
+
+                        <dt>OTHER</dt>
+                        <dd class="text-muted mb-0">Qualquer outro motivo. Detalhe nas observações.</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

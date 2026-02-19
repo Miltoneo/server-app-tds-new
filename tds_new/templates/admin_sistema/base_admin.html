@@ -73,15 +73,26 @@
                     </h6>
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link {% if 'certificados' in request.path %}active{% endif %}" 
+                            <a class="nav-link {% if 'certificados' in request.path and 'download' not in request.path and 'revogar' not in request.path and 'gerar' not in request.path %}active{% endif %}"
                                href="{% url 'tds_new:admin_certificados_list' %}">
                                 <i class="bi bi-shield-check me-2"></i>Certificados
                             </a>
                         </li>
-                        <!-- Week 9: Alocação, Importação CSV -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'bootstrap' in request.path %}active{% endif %}"
+                               href="{% url 'tds_new:admin_bootstrap_list' %}">
+                                <i class="bi bi-shield-lock me-2"></i>Bootstrap Certs
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'registros' in request.path %}active{% endif %}"
+                               href="{% url 'tds_new:admin_registros_pendentes' %}">
+                                <i class="bi bi-person-plus me-2"></i>Registros Pendentes
+                            </a>
+                        </li>
                         <li class="nav-item">
                             <a class="nav-link disabled" href="#">
-                                <i class="bi bi-upload me-2"></i>Importar CSV <small class="text-muted">(Week 9)</small>
+                                <i class="bi bi-upload me-2"></i>Importar CSV <small class="text-muted">(em breve)</small>
                             </a>
                         </li>
                     </ul>

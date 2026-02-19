@@ -14,6 +14,7 @@ from django.urls import path
 from . import views
 from .views import gateway, dispositivo, telemetria
 from .views.admin import dashboard as admin_dashboard, provisionamento as admin_prov
+from .views.api import provisionamento as api_prov
 
 app_name = 'tds_new'
 
@@ -89,14 +90,66 @@ urlpatterns = [
          admin_prov.alocar_gateway_view,
          name='admin_alocar_gateway'),
     
-    # Provisionamento - Alocar via Certificado (Week 9 - Fase 1)
+    # Provisionamento - Alocar via Certificado
     path('admin-sistema/provisionamento/certificado/<int:certificado_id>/alocar/',
          admin_prov.alocar_gateway_por_certificado_view,
          name='admin_alocar_gateway_por_certificado'),
-    
-    # Week 9 (planejado): Importação CSV, revogação
-    # path('admin-sistema/provisionamento/importar-csv/', ...)
-    # path('admin-sistema/provisionamento/certificados/<int:certificado_id>/revogar/', ...)
+
+    # Provisionamento - Geração de Certificado (modo factory)
+    path('admin-sistema/provisionamento/gateway/<int:gateway_id>/gerar-certificado/',
+         admin_prov.gerar_certificado_gateway_view,
+         name='admin_gerar_certificado_gateway'),
+
+    # Provisionamento - Download do pacote ZIP de provisionamento
+    path('admin-sistema/provisionamento/certificado/<int:certificado_id>/download/',
+         admin_prov.download_certificado_zip_view,
+         name='admin_download_certificado'),
+
+    # Provisionamento - Revogação de Certificado
+    path('admin-sistema/provisionamento/certificado/<int:certificado_id>/revogar/',
+         admin_prov.revogar_certificado_view,
+         name='admin_revogar_certificado'),
+
+    # -------------------------------------------------------------------------
+    # Bootstrap Certificates — cert compartilhado para a fábrica
+    # -------------------------------------------------------------------------
+    path('admin-sistema/provisionamento/bootstrap/',
+         admin_prov.bootstrap_cert_list_view,
+         name='admin_bootstrap_list'),
+
+    path('admin-sistema/provisionamento/bootstrap/gerar/',
+         admin_prov.gerar_bootstrap_cert_view,
+         name='admin_gerar_bootstrap'),
+
+    path('admin-sistema/provisionamento/bootstrap/<int:bootstrap_id>/download/',
+         admin_prov.download_bootstrap_zip_view,
+         name='admin_download_bootstrap'),
+
+    path('admin-sistema/provisionamento/bootstrap/<int:bootstrap_id>/revogar/',
+         admin_prov.revogar_bootstrap_cert_view,
+         name='admin_revogar_bootstrap'),
+
+    # -------------------------------------------------------------------------
+    # Registros Pendentes — devices que fizeram auto-registro no primeiro boot
+    # -------------------------------------------------------------------------
+    path('admin-sistema/provisionamento/registros/',
+         admin_prov.registros_pendentes_view,
+         name='admin_registros_pendentes'),
+
+    path('admin-sistema/provisionamento/registros/<int:registro_id>/processar/',
+         admin_prov.processar_registro_view,
+         name='admin_processar_registro'),
+
+    path('admin-sistema/provisionamento/registros/<int:registro_id>/rejeitar/',
+         admin_prov.rejeitar_registro_view,
+         name='admin_rejeitar_registro'),
+
+    # -------------------------------------------------------------------------
+    # API REST — endpoint chamado pelo device no primeiro boot
+    # -------------------------------------------------------------------------
+    path('api/provision/register/',
+         api_prov.auto_register_view,
+         name='api_auto_register'),
     
     # Week 9 (planejado): Auditoria
     # path('admin-sistema/auditoria/logs/', ...)

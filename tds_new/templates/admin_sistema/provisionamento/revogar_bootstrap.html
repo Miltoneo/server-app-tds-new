@@ -1,0 +1,109 @@
+{% extends 'admin_sistema/base_admin.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <!-- Alerta de perigo -->
+            <div class="alert alert-danger d-flex gap-2 mb-3">
+                <i class="bi bi-exclamation-octagon-fill fs-4"></i>
+                <div>
+                    <strong>⚠️ AÇÃO IRREVERSÍVEL — IMPACTO CRÍTICO</strong><br>
+                    Revogar este bootstrap cert <strong>impedirá que TODOS os devices ainda não provisionados</strong>
+                    que usam este certificado conectem ao broker MQTT.<br>
+                    <em>Use apenas em caso de comprometimento da chave privada.</em><br>
+                    Para rotação planejada (novo lote), <a href="{% url 'tds_new:admin_gerar_bootstrap' %}">gere um novo bootstrap cert</a> sem revogar.
+                </div>
+            </div>
+
+            <!-- Dados do Bootstrap Cert -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong><i class="bi bi-shield-x me-2"></i>Bootstrap a Revogar</strong>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr><th style="width:180px">Identificação</th><td>{{ bootstrap.label }}</td></tr>
+                        <tr><th>Serial Number</th><td><code>{{ bootstrap.serial_number }}</code></td></tr>
+                        <tr><th>Estado Atual</th>
+                            <td>
+                                {% if bootstrap.is_active %}<span class="badge bg-success">ATIVO</span>
+                                {% else %}<span class="badge bg-secondary">INATIVO</span>{% endif %}
+                            </td>
+                        </tr>
+                        <tr><th>Devices usando</th>
+                            <td>
+                                {{ bootstrap.registros.count }} registro(s) vinculado(s)
+                                {% with pendentes=bootstrap.registros.filter %}
+                                {% endwith %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Formulário de revogação -->
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <strong>Confirmar Revogação</strong>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">{{ form.motivo.label }}</label>
+                            {{ form.motivo }}
+                            {% if form.motivo.errors %}<div class="text-danger small">{{ form.motivo.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">{{ form.notas.label }}</label>
+                            {{ form.notas }}
+                            {% if form.notas.help_text %}<div class="form-text">{{ form.notas.help_text }}</div>{% endif %}
+                            {% if form.notas.errors %}<div class="text-danger small">{{ form.notas.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            {{ form.confirmacao }}
+                            <label class="form-check-label fw-semibold text-danger" for="{{ form.confirmacao.id_for_label }}">
+                                {{ form.confirmacao.label }}
+                            </label>
+                            {% if form.confirmacao.errors %}<div class="text-danger small">{{ form.confirmacao.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-x-octagon me-2"></i>Revogar Bootstrap Certificate
+                            </button>
+                            <a href="{% url 'tds_new:admin_bootstrap_list' %}" class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Instrução pós-revogação -->
+            <div class="card mt-3 border-warning">
+                <div class="card-header text-warning">
+                    <strong><i class="bi bi-clock me-2"></i>Após a Revogação</strong>
+                </div>
+                <div class="card-body small">
+                    <ol class="mb-0">
+                        <li>Atualize a CRL na configuração do broker Mosquitto</li>
+                        <li>Reinicie o Mosquitto para aplicar a nova CRL</li>
+                        <li>Gere um novo Bootstrap Certificate para os próximos lotes</li>
+                        <li>Oriente a fábrica a usar o novo bootstrap cert</li>
+                    </ol>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

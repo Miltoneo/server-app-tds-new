@@ -1,0 +1,136 @@
+{% extends 'admin_sistema/base_admin.html' %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- Alerta — cert ativo -->
+    {% if bootstrap_ativo %}
+    <div class="alert alert-success d-flex align-items-start gap-2 mb-3">
+        <i class="bi bi-shield-fill-check fs-5"></i>
+        <div>
+            <strong>Bootstrap Cert Ativo:</strong> {{ bootstrap_ativo.label }}
+            &nbsp;|&nbsp; Serial: <code>{{ bootstrap_ativo.serial_number|truncatechars:20 }}</code>
+            &nbsp;|&nbsp; Expira: {{ bootstrap_ativo.expires_at|date:"d/m/Y" }}
+            &nbsp;
+            <a href="{% url 'tds_new:admin_download_bootstrap' bootstrap_ativo.pk %}"
+               class="btn btn-sm btn-success ms-2">
+                <i class="bi bi-download me-1"></i>Download ZIP Fábrica
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+        <strong>Nenhum Bootstrap Certificate ativo.</strong>
+        Devices de fábrica não conseguirão fazer o primeiro contato com o broker.
+    </div>
+    {% endif %}
+
+    <!-- Cabeçalho + Ação -->
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong><i class="bi bi-shield-lock me-2"></i>Bootstrap Certificates — Fábrica</strong>
+            <a href="{% url 'tds_new:admin_gerar_bootstrap' %}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-circle me-1"></i>Gerar Novo Bootstrap Cert
+            </a>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-0 small">
+                O Bootstrap Certificate é gravado em <strong>todos os devices</strong> que saem da fábrica.
+                Permite ao device o primeiro contato com o broker MQTT apenas no tópico de provisionamento.
+                Após o admin alocar o device, um certificado individual é emitido.
+                <a href="#" data-bs-toggle="collapse" data-bs-target="#explicacao">Saiba mais ▾</a>
+            </p>
+            <div class="collapse mt-2" id="explicacao">
+                <div class="bg-light border rounded p-3 small">
+                    <strong>Fluxo Bootstrap:</strong><br>
+                    <ol class="mb-0">
+                        <li>Admin gera Bootstrap Cert → faz download do ZIP</li>
+                        <li>Fábrica grava <code>bootstrap.crt</code> + <code>bootstrap.key</code> + <code>ca.crt</code> em <strong>todos</strong> os devices do lote</li>
+                        <li>Device liga → usa bootstrap cert → conecta ao broker → POST /api/provision/register/</li>
+                        <li>Device aparece em <strong>Registros Pendentes</strong></li>
+                        <li>Admin aloca → emite certificado individual → device passa a usar cert individual</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Identificação</th>
+                        <th>Serial</th>
+                        <th>Expira em</th>
+                        <th>Gerado em</th>
+                        <th>Estado</th>
+                        <th class="text-end" style="width:220px">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bc in bootstrap_certs %}
+                    <tr class="{% if bc.is_revoked %}table-danger{% elif bc.is_active %}table-success{% endif %}">
+                        <td>
+                            <strong>{{ bc.label }}</strong>
+                            {% if bc.is_active %}<span class="badge bg-success ms-2">ATIVO</span>{% endif %}
+                            <br>
+                            <small class="text-muted">
+                                <i class="bi bi-hash"></i>{{ bc.fingerprint_sha256|truncatechars:30|default:"—" }}
+                            </small>
+                        </td>
+                        <td><code class="small">{{ bc.serial_number|truncatechars:20 }}</code></td>
+                        <td>
+                            {{ bc.expires_at|date:"d/m/Y" }}
+                            {% if bc.dias_para_expiracao < 365 and not bc.is_revoked %}
+                            <span class="badge bg-warning text-dark ms-1">{{ bc.dias_para_expiracao }}d</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ bc.created_at|date:"d/m/Y H:i" }}<br>
+                            <small class="text-muted">{{ bc.created_by.email|default:"sistema" }}</small>
+                        </td>
+                        <td>
+                            {% if bc.is_revoked %}
+                                <span class="badge bg-danger">REVOGADO</span>
+                                <br><small class="text-muted">{{ bc.revoked_at|date:"d/m/Y" }} — {{ bc.get_revoke_reason_display|default:"" }}</small>
+                            {% elif bc.is_active %}
+                                <span class="badge bg-success">ATIVO</span>
+                            {% else %}
+                                <span class="badge bg-secondary">INATIVO</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if not bc.is_revoked %}
+                            <a href="{% url 'tds_new:admin_download_bootstrap' bc.pk %}"
+                               class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-download"></i> ZIP
+                            </a>
+                            <a href="{% url 'tds_new:admin_revogar_bootstrap' bc.pk %}"
+                               class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-x-circle"></i> Revogar
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">Revogado</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="bi bi-shield-x fs-4 d-block mb-2"></i>
+                            Nenhum Bootstrap Certificate gerado ainda.<br>
+                            <a href="{% url 'tds_new:admin_gerar_bootstrap' %}" class="btn btn-primary btn-sm mt-2">
+                                Gerar o Primeiro Bootstrap Cert
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

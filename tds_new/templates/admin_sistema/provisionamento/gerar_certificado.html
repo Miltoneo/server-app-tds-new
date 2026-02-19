@@ -1,0 +1,188 @@
+{% extends 'admin_sistema/base_admin.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'tds_new:admin_certificados_list' %}">Certificados</a></li>
+            <li class="breadcrumb-item active">Gerar Certificado</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Informações do Gateway -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-hdd-network me-2"></i>
+                    <strong>Gateway: {{ gateway.device_id|default:gateway.mac }}</strong>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <th class="text-muted" style="width:40%">Device ID</th>
+                                    <td><code>{{ gateway.device_id|default:"—" }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">MAC Address</th>
+                                    <td><code>{{ gateway.mac|default:"—" }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Serial Number</th>
+                                    <td><code>{{ gateway.serial_number|default:"—" }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Modelo</th>
+                                    <td>{{ gateway.modelo|default:"—" }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">HW Version</th>
+                                    <td>{{ gateway.hardware_version|default:"—" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <th class="text-muted" style="width:40%">Conta</th>
+                                    <td><strong>{{ gateway.conta.name }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Status</th>
+                                    <td>
+                                        {% if gateway.is_online %}
+                                            <span class="badge bg-success"><i class="bi bi-wifi me-1"></i>Online</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-wifi-off me-1"></i>Offline</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Gateway Code</th>
+                                    <td><code>{{ gateway.gateway_code|default:"(derivado em runtime)" }}</code></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerta: certificado existente -->
+            {% if cert_ativo %}
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Atenção:</strong> Este gateway já possui um certificado ativo.
+                <br>
+                <small>
+                    Serial: <code>{{ cert_ativo.serial_number|truncatechars:24 }}</code> |
+                    Emitido em: {{ cert_ativo.issued_at|date:"d/m/Y" }} |
+                    Expira em: {{ cert_ativo.expires_at|date:"d/m/Y" }}
+                </small>
+                <br>
+                Marque "Revogar certificado existente" abaixo para substituí-lo,
+                ou <a href="{% url 'tds_new:admin_download_certificado' cert_ativo.pk %}">faça download do certificado existente</a>.
+            </div>
+            {% endif %}
+
+            <!-- Formulário de confirmação -->
+            <div class="card">
+                <div class="card-header">
+                    <strong><i class="bi bi-shield-plus me-2"></i>Geração de Certificado — Modo Factory</strong>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <strong>Modo Factory:</strong> O certificado e a chave privada são gerados pelo servidor
+                        para gravação física no dispositivo via
+                        <code>esptool.py</code> / <em>NVS Partition Tool</em>.
+                        <br>
+                        Para dispositivos que suportam geração de CSR internamente (ESP-IDF mbedTLS),
+                        use o endpoint <code>POST /api/sign-csr/</code>.
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.forcar_renovacao }}
+                                <label class="form-check-label" for="{{ form.forcar_renovacao.id_for_label }}">
+                                    {{ form.forcar_renovacao.label }}
+                                </label>
+                                <div class="form-text text-muted">{{ form.forcar_renovacao.help_text }}</div>
+                                {% if form.forcar_renovacao.errors %}
+                                    <div class="text-danger small">{{ form.forcar_renovacao.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="form-check">
+                                {{ form.confirmacao }}
+                                <label class="form-check-label fw-bold" for="{{ form.confirmacao.id_for_label }}">
+                                    {{ form.confirmacao.label }}
+                                </label>
+                                <div class="form-text text-muted">{{ form.confirmacao.help_text }}</div>
+                                {% if form.confirmacao.errors %}
+                                    <div class="text-danger small">{{ form.confirmacao.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-shield-plus me-2"></i>Gerar Certificado
+                            </button>
+                            <a href="{% url 'tds_new:admin_certificados_list' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle me-1"></i>Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Painel lateral de informações -->
+        <div class="col-lg-4">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-info-circle me-2"></i>Modelo PKI Adotado
+                </div>
+                <div class="card-body small">
+                    <p><strong>CSR (Recomendado — produção):</strong></p>
+                    <ol>
+                        <li>Dispositivo gera par RSA 2048 internamente</li>
+                        <li>Dispositivo envia apenas o CSR</li>
+                        <li>Backend assina o CSR com a CA</li>
+                        <li>Chave privada <strong>nunca sai do dispositivo</strong></li>
+                    </ol>
+                    <hr>
+                    <p><strong>Factory (este fluxo — gravação física):</strong></p>
+                    <ol>
+                        <li>Servidor gera o par chave+certificado</li>
+                        <li>ZIP é gravado via esptool.py</li>
+                        <li>Chave é armazenada temporariamente no servidor</li>
+                        <li>Após gravação, <strong>apagar <code>private_key_pem</code> do banco</strong></li>
+                    </ol>
+                    <hr>
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-shield-lock me-1"></i>
+                        CA Key: <code>certs/ca/ca.key</code><br>
+                        CA Cert: <code>certs/ca/ca.crt</code>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends 'admin_sistema/base_admin.html' %}
+
+{% block content %}
+<div class="container-fluid" style="max-width: 860px;">
+
+    <!-- Dados do Device -->
+    <div class="card mb-3 border-primary">
+        <div class="card-header bg-primary text-white">
+            <strong><i class="bi bi-cpu me-2"></i>Device em Espera — Auto-Registro</strong>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <dl class="row mb-0">
+                        <dt class="col-5 text-muted">MAC Address</dt>
+                        <dd class="col-7"><code>{{ registro.mac_address }}</code></dd>
+                        <dt class="col-5 text-muted">Modelo</dt>
+                        <dd class="col-7">{{ registro.modelo|default:"—" }}</dd>
+                        <dt class="col-5 text-muted">Firmware</dt>
+                        <dd class="col-7">{{ registro.fw_version|default:"—" }}</dd>
+                    </dl>
+                </div>
+                <div class="col-md-6">
+                    <dl class="row mb-0">
+                        <dt class="col-5 text-muted">Serial HW</dt>
+                        <dd class="col-7"><code>{{ registro.serial_number_device|default:"—" }}</code></dd>
+                        <dt class="col-5 text-muted">IP Origem</dt>
+                        <dd class="col-7">{{ registro.ip_origem|default:"—" }}</dd>
+                        <dt class="col-5 text-muted">Bootstrap Cert</dt>
+                        <dd class="col-7">{{ registro.bootstrap_cert.label|default:"—" }}</dd>
+                    </dl>
+                </div>
+            </div>
+            <hr class="my-2">
+            <div class="small text-muted">
+                <i class="bi bi-clock me-1"></i>
+                Registrado em {{ registro.created_at|date:"d/m/Y \à\s H:i" }}
+                &nbsp;·&nbsp;
+                Status atual:
+                <span class="badge bg-warning text-dark">{{ registro.get_status_display|default:registro.status }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerta de ação -->
+    <div class="alert alert-info d-flex gap-2 align-items-start">
+        <i class="bi bi-info-circle-fill mt-1"></i>
+        <div>
+            <strong>O que acontece ao alocar:</strong>
+            <ul class="mb-0 mt-1">
+                <li>Um <strong>Gateway</strong> será criado na conta selecionada com o nome e device_id informados.</li>
+                <li>O registro é marcado como <strong>PROVISIONADO</strong> (ou ALOCADO se sem certificado).</li>
+                <li>Se "Gerar certificado" estiver marcado, um certificado TLS será emitido automaticamente e ficará disponível para download.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Formulário de Alocação -->
+    <div class="card">
+        <div class="card-header">
+            <strong><i class="bi bi-person-check me-2"></i>Alocar Device a uma Conta</strong>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label for="{{ form.conta.id_for_label }}" class="form-label fw-semibold">
+                        Conta <span class="text-danger">*</span>
+                    </label>
+                    {{ form.conta }}
+                    {% if form.conta.errors %}
+                    <div class="text-danger small mt-1">{{ form.conta.errors }}</div>
+                    {% endif %}
+                    <div class="form-text">A conta (tenant) à qual este gateway pertencerá.</div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.device_id.id_for_label }}" class="form-label fw-semibold">
+                            Device ID (gateway) <span class="text-danger">*</span>
+                        </label>
+                        {{ form.device_id }}
+                        {% if form.device_id.errors %}
+                        <div class="text-danger small mt-1">{{ form.device_id.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">Identificador único do gateway no sistema (letras, números, traços).</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.nome_gateway.id_for_label }}" class="form-label fw-semibold">
+                            Nome do Gateway
+                        </label>
+                        {{ form.nome_gateway }}
+                        {% if form.nome_gateway.errors %}
+                        <div class="text-danger small mt-1">{{ form.nome_gateway.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">Nome amigável exibido ao usuário final.</div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Certificado TLS</label>
+                    <div class="form-check">
+                        {{ form.gerar_certificado }}
+                        <label class="form-check-label" for="{{ form.gerar_certificado.id_for_label }}">
+                            Gerar e emitir certificado de operação agora
+                        </label>
+                    </div>
+                    {% if form.gerar_certificado.errors %}
+                    <div class="text-danger small mt-1">{{ form.gerar_certificado.errors }}</div>
+                    {% endif %}
+                    <div class="form-text">
+                        Se marcado, o certificado TLS de operação é gerado imediatamente e o device pode ser configurado
+                        na sequência. Desmarcado, o device fica no status <em>Alocado</em> e o cert pode ser emitido depois.
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="{{ form.notas.id_for_label }}" class="form-label">Notas (opcional)</label>
+                    {{ form.notas }}
+                    {% if form.notas.errors %}
+                    <div class="text-danger small mt-1">{{ form.notas.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check2-circle me-1"></i>
+                        Alocar Device
+                    </button>
+                    <a href="{% url 'tds_new:admin_registros_pendentes' %}" class="btn btn-outline-secondary">
+                        Cancelar
+                    </a>
+                    <form method="post" action="{% url 'tds_new:admin_rejeitar_registro' registro.pk %}"
+                          class="ms-auto"
+                          onsubmit="return confirm('Rejeitar definitivamente este device?')">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger">
+                            <i class="bi bi-x-circle me-1"></i>Rejeitar Device
+                        </button>
+                    </form>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

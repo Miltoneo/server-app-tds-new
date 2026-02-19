@@ -98,7 +98,55 @@ class Gateway(SaaSBaseModel):
         verbose_name="Versão do Firmware",
         help_text="Versão do firmware instalado no gateway"
     )
-    
+
+    # =========================================================================
+    # IDENTIDADE DE FÁBRICA (Factory Provisioning — NVS partition 'setup')
+    # Preenchidos no momento do provisionamento/gravação do dispositivo.
+    # =========================================================================
+
+    device_id = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name="Device ID",
+        help_text="Identidade lógica MQTT gravada na NVS de fábrica (ex: AA0011). "
+                  "Usada como ClientID no broker e como base do gateway_code."
+    )
+
+    serial_number = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Número de Série",
+        help_text="Identidade física irrevogável gravada na NVS de fábrica (ex: AA0011). "
+                  "Vinculada ao hardware — nunca muda mesmo se device_id mudar."
+    )
+
+    gateway_code = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Gateway Code",
+        help_text="Código derivado em runtime pelo firmware: '{device_id}-{LAST4HEX_MAC}' "
+                  "(ex: AA0011-E1F2). Preenchido pelo backend na primeira conexão MQTT."
+    )
+
+    modelo = models.CharField(
+        max_length=30,
+        blank=True,
+        null=True,
+        verbose_name="Modelo de Hardware",
+        help_text="Modelo do hardware gravado na NVS de fábrica (ex: DCU-1800)"
+    )
+
+    hardware_version = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name="Versão de Hardware",
+        help_text="Revisão de hardware gravada na NVS de fábrica (ex: 1.0)"
+    )
+
     class Meta:
         verbose_name = "Gateway"
         verbose_name_plural = "Gateways"
@@ -110,10 +158,14 @@ class Gateway(SaaSBaseModel):
             models.Index(fields=['conta', 'is_online']),
             models.Index(fields=['conta', 'mac']),
             models.Index(fields=['conta', 'codigo']),
+            models.Index(fields=['device_id'], name='tds_new_gw_device_id_idx'),
+            models.Index(fields=['serial_number'], name='tds_new_gw_serial_idx'),
         ]
         ordering = ['-created_at']
-    
+
     def __str__(self):
+        if self.device_id:
+            return f"{self.device_id} - {self.nome}"
         return f"{self.codigo} - {self.nome}"
     
     @property

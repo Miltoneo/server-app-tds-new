@@ -39,27 +39,34 @@
     <!-- Tabela de Certificados -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <strong><i class="bi bi-shield-check me-2"></i>Certificados X.509 - Visão Global</strong>
+            <strong><i class="bi bi-shield-check me-2"></i>Certificados X.509 — Visão Global</strong>
             <span class="badge bg-primary">{{ certificados.paginator.count|default:"0" }} total</span>
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover table-sm">
                     <thead>
                         <tr>
-                            <th>Serial Number</th>
+                            <th>Device ID</th>
                             <th>MAC Address</th>
                             <th>Conta</th>
-                            <th>Emissão</th>
-                            <th>Expiração</th>
+                            <th>Serial (Cert)</th>
+                            <th>Expira em</th>
                             <th>Status</th>
-                            <th style="width: 200px;" class="text-end">Ações</th>
+                            <th style="width: 220px;" class="text-end">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for cert in certificados %}
                         <tr>
-                            <td><code class="small">{{ cert.serial_number|truncatechars:20 }}</code></td>
+                            <td>
+                                <code class="small">{{ cert.device_id|default:"—" }}</code>
+                                {% if cert.gateway %}
+                                    <br><small class="text-muted">
+                                        <i class="bi bi-hdd-network me-1"></i>{{ cert.gateway.nome|default:cert.gateway.mac }}
+                                    </small>
+                                {% endif %}
+                            </td>
                             <td><code class="small">{{ cert.mac_address }}</code></td>
                             <td>
                                 {% if cert.conta %}
@@ -69,7 +76,7 @@
                                     <span class="badge bg-warning text-dark">Sem Conta</span>
                                 {% endif %}
                             </td>
-                            <td>{{ cert.created_at|date:"d/m/Y H:i" }}</td>
+                            <td><code class="small">{{ cert.serial_number|truncatechars:16 }}</code></td>
                             <td>
                                 {{ cert.expires_at|date:"d/m/Y" }}
                                 {% if cert.expires_at %}
@@ -88,7 +95,7 @@
                                         <br><small class="text-muted">{{ cert.revoked_at|date:"d/m/Y" }}</small>
                                     {% endif %}
                                 {% elif cert.expires_at and cert.expires_at|date:"U" < current %}
-                                    <span class="badge bg-warning">
+                                    <span class="badge bg-warning text-dark">
                                         <i class="bi bi-exclamation-triangle me-1"></i>Expirado
                                     </span>
                                 {% else %}
@@ -98,18 +105,41 @@
                                 {% endif %}
                             </td>
                             <td class="text-end">
-                                {# Botão Alocar - SEMPRE VISÍVEL (Week 9 - Fase 1) #}
-                                <a href="{% url 'tds_new:admin_alocar_gateway_por_certificado' cert.id %}" 
-                                   class="btn btn-sm btn-outline-primary" 
-                                   title="Alocar Gateway para Conta">
-                                    <i class="bi bi-arrow-left-right"></i> Alocar
+                                <!-- Download -->
+                                <a href="{% url 'tds_new:admin_download_certificado' cert.id %}"
+                                   class="btn btn-sm btn-outline-success"
+                                   title="Download pacote ZIP de provisionamento">
+                                    <i class="bi bi-download"></i>
                                 </a>
-                                
-                                {# Botão Revogar (Week 9 - Fase 3) #}
+
+                                <!-- Alocar Gateway -->
+                                <a href="{% url 'tds_new:admin_alocar_gateway_por_certificado' cert.id %}"
+                                   class="btn btn-sm btn-outline-primary"
+                                   title="Alocar Gateway para Conta">
+                                    <i class="bi bi-arrow-left-right"></i>
+                                </a>
+
+                                <!-- Gerar novo certificado (se tem gateway vinculado) -->
+                                {% if cert.gateway %}
+                                <a href="{% url 'tds_new:admin_gerar_certificado_gateway' cert.gateway.pk %}"
+                                   class="btn btn-sm btn-outline-secondary"
+                                   title="Gerar/renovar certificado para este gateway">
+                                    <i class="bi bi-shield-plus"></i>
+                                </a>
+                                {% endif %}
+
+                                <!-- Revogar -->
                                 {% if not cert.is_revoked %}
-                                <button class="btn btn-sm btn-outline-danger" disabled title="Revogação disponível em Week 9 - Fase 3">
+                                <a href="{% url 'tds_new:admin_revogar_certificado' cert.id %}"
+                                   class="btn btn-sm btn-outline-danger"
+                                   title="Revogar Certificado"
+                                   onclick="return confirm('Revogar o certificado de {{ cert.device_id|default:cert.mac_address }}? Esta ação é irreversível.')">
                                     <i class="bi bi-x-circle"></i>
-                                </button>
+                                </a>
+                                {% else %}
+                                <span class="btn btn-sm btn-outline-secondary disabled" title="Já revogado">
+                                    <i class="bi bi-x-circle"></i>
+                                </span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -169,14 +199,23 @@
     <!-- Legenda -->
     <div class="card mt-3">
         <div class="card-body">
-            <strong>Legenda:</strong>
-            <span class="badge bg-success ms-2"><i class="bi bi-check-circle"></i> Válido</span>
-            <span class="badge bg-warning ms-2"><i class="bi bi-exclamation-triangle"></i> Expirado</span>
-            <span class="badge bg-danger ms-2"><i class="bi bi-x-circle"></i> Revogado</span>
-            <span class="text-muted ms-3">
-                <i class="bi bi-info-circle"></i> 
-                Esta lista mostra certificados de <strong>todas as contas</strong> do sistema.
-            </span>
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <strong>Legenda:</strong>
+                <span class="badge bg-success"><i class="bi bi-check-circle"></i> Válido</span>
+                <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Expirado</span>
+                <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Revogado</span>
+                <span class="text-muted">|</span>
+                <span class="text-muted small">
+                    <i class="bi bi-download text-success"></i> Download ZIP
+                    <i class="bi bi-arrow-left-right text-primary ms-2"></i> Alocar Gateway
+                    <i class="bi bi-shield-plus text-secondary ms-2"></i> Gerar Cert
+                    <i class="bi bi-x-circle text-danger ms-2"></i> Revogar
+                </span>
+                <span class="text-muted ms-auto small">
+                    <i class="bi bi-info-circle"></i>
+                    Esta lista mostra certificados de <strong>todas as contas</strong> do sistema.
+                </span>
+            </div>
         </div>
     </div>
 </div>

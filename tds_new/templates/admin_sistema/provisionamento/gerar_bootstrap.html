@@ -1,0 +1,80 @@
+{% extends 'admin_sistema/base_admin.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <!-- Bootstrap ativo atual -->
+            {% if bootstrap_ativo %}
+            <div class="alert alert-info d-flex gap-2 mb-3">
+                <i class="bi bi-info-circle-fill fs-5"></i>
+                <div>
+                    <strong>Bootstrap Cert Ativo Atual:</strong> {{ bootstrap_ativo.label }}<br>
+                    <small>Serial: <code>{{ bootstrap_ativo.serial_number|truncatechars:24 }}</code>
+                    &nbsp;|&nbsp; Expira: {{ bootstrap_ativo.expires_at|date:"d/m/Y" }}</small><br>
+                    <small class="text-muted">
+                        Ao gerar um novo, este será automaticamente <strong>desativado</strong>
+                        (mas NÃO revogado — devices em campo ainda não provisionados
+                        podem continuar usando até serem provisionados).
+                    </small>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Formulário -->
+            <div class="card">
+                <div class="card-header">
+                    <strong><i class="bi bi-shield-plus me-2"></i>Gerar Novo Bootstrap Certificate</strong>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">{{ form.label.label }}</label>
+                            {{ form.label }}
+                            {% if form.label.help_text %}<div class="form-text">{{ form.label.help_text }}</div>{% endif %}
+                            {% if form.label.errors %}<div class="text-danger small">{{ form.label.errors }}</div>{% endif %}
+                        </div>
+
+                        <!-- Resumo do que será gerado -->
+                        <div class="bg-light border rounded p-3 mb-3 small">
+                            <strong>O que será gerado:</strong>
+                            <ul class="mb-0 mt-1">
+                                <li>Chave privada RSA 2048 bits</li>
+                                <li>Certificado X.509 válido por 10 anos, assinado pela CA</li>
+                                <li>CN: <code>bootstrap-&lt;label&gt;</code></li>
+                                <li>SAN: <code>bootstrap.onkoto.iot</code></li>
+                                <li>ZIP para download: <code>bootstrap.crt</code>, <code>bootstrap.key</code>, <code>ca.crt</code>, <code>README_nvs.txt</code></li>
+                            </ul>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            {{ form.confirmacao }}
+                            <label class="form-check-label" for="{{ form.confirmacao.id_for_label }}">
+                                {{ form.confirmacao.label }}
+                            </label>
+                            {% if form.confirmacao.help_text %}<div class="form-text">{{ form.confirmacao.help_text }}</div>{% endif %}
+                            {% if form.confirmacao.errors %}<div class="text-danger small">{{ form.confirmacao.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-shield-plus me-2"></i>Gerar Bootstrap Certificate
+                            </button>
+                            <a href="{% url 'tds_new:admin_bootstrap_list' %}" class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

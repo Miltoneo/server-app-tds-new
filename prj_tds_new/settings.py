@@ -597,3 +597,29 @@ MQTT_KEYFILE = env('MQTT_KEYFILE', default='/app/certs/django-consumer-key.pem')
 
 # Keepalive (em segundos)
 MQTT_KEEPALIVE = env.int('MQTT_KEEPALIVE', default=60)
+
+# =============================================================================
+# PKI — CERTIFICATE AUTHORITY (assinatura de certificados de dispositivos IoT)
+# =============================================================================
+# Caminhos locais: certs/ca/ (fora do diretório estático, nunca servido via web)
+# Produção: configure via variáveis de ambiente apontando para armazenamento seguro.
+#
+# IMPORTANTE:
+#   ca.key  → Chave privada da CA. NUNCA commitar. Em produção: use Vault/KMS.
+#   ca.crt  → Certificado público da CA. Distribuído para dispositivos e brokers.
+
+MQTT_CA_CERT_PATH = env(
+    'MQTT_CA_CERT_PATH',
+    default=str(BASE_DIR / 'certs' / 'ca' / 'ca.crt')
+)
+
+MQTT_CA_KEY_PATH = env(
+    'MQTT_CA_KEY_PATH',
+    default=str(BASE_DIR / 'certs' / 'ca' / 'ca.key')
+)
+
+# Senha da chave privada da CA (deixar vazio se não usar senha)
+MQTT_CA_KEY_PASSWORD = env('MQTT_CA_KEY_PASSWORD', default='')
+
+# Validade padrão dos certificados de dispositivos (em dias)
+DEVICE_CERT_VALIDITY_DAYS = env.int('DEVICE_CERT_VALIDITY_DAYS', default=3650)  # 10 anos

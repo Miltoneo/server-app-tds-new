@@ -1,0 +1,227 @@
+{% extends 'admin_sistema/base_admin.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'tds_new:admin_certificados_list' %}">Certificados</a></li>
+            <li class="breadcrumb-item active">Download — Pacote de Provisionamento</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Card de sucesso -->
+            <div class="card mb-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <strong>Certificado gerado com sucesso</strong>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Dispositivo</h6>
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <th class="text-muted" style="width:45%">Device ID</th>
+                                    <td><code>{{ certificado.device_id|default:"—" }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">MAC Address</th>
+                                    <td><code>{{ certificado.mac_address }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Conta</th>
+                                    <td><strong>{{ certificado.conta.name }}</strong></td>
+                                </tr>
+                                {% if gateway %}
+                                <tr>
+                                    <th class="text-muted">Modelo</th>
+                                    <td>{{ gateway.modelo|default:"—" }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Certificado X.509</h6>
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <th class="text-muted" style="width:45%">Serial</th>
+                                    <td><code class="small">{{ certificado.serial_number|truncatechars:20 }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Emissão</th>
+                                    <td>{{ certificado.issued_at|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Expira em</th>
+                                    <td>{{ certificado.expires_at|date:"d/m/Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Fingerprint</th>
+                                    <td><code class="small">{{ certificado.fingerprint_sha256|truncatechars:20|default:"—" }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Modo PKI</th>
+                                    <td>
+                                        {% if certificado.private_key_pem %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-key-fill me-1"></i>Factory (chave no servidor)
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-shield-check me-1"></i>CSR (chave no dispositivo)
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conteúdo do ZIP -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-file-earmark-zip me-2"></i>
+                    <strong>Conteúdo do Pacote ZIP</strong>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Arquivo</th>
+                                <th>Descrição</th>
+                                <th>Destino NVS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>ca.crt</code></td>
+                                <td>Certificado raiz da CA</td>
+                                <td><code>ns_certs → ca_crt</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>client.crt</code></td>
+                                <td>Certificado assinado do dispositivo</td>
+                                <td><code>ns_certs → client_crt</code></td>
+                            </tr>
+                            {% if certificado.private_key_pem %}
+                            <tr class="table-warning">
+                                <td><code>client.key</code></td>
+                                <td>
+                                    Chave privada RSA 2048
+                                    <br><small class="text-danger">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                        Apagar do banco após gravação!
+                                    </small>
+                                </td>
+                                <td><code>ns_certs → client_key</code></td>
+                            </tr>
+                            {% else %}
+                            <tr class="table-secondary">
+                                <td><code class="text-muted">client.key</code></td>
+                                <td class="text-muted">
+                                    <i class="bi bi-shield-check me-1 text-success"></i>
+                                    Não incluído — chave permanece no dispositivo (modo CSR)
+                                </td>
+                                <td class="text-muted">—</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td><code>README_nvs.txt</code></td>
+                                <td>Instruções de gravação NVS (ESP-IDF)</td>
+                                <td>—</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Botão de download -->
+            <div class="card border-primary">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-download fs-1 text-primary d-block mb-2"></i>
+                    <p class="mb-3">
+                        Faça o download do pacote de provisionamento e grave no dispositivo
+                        usando o <em>ESP-IDF NVS Partition Tool</em>.
+                    </p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary btn-lg px-5">
+                            <i class="bi bi-file-earmark-zip me-2"></i>Baixar ZIP de Provisionamento
+                        </button>
+                    </form>
+                    <p class="text-muted small mt-2">
+                        O arquivo será nomeado: <code>provisioning_{{ certificado.device_id|default:certificado.mac_address }}_{{ certificado.serial_number|truncatechars:12 }}.zip</code>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Aviso chave privada -->
+            {% if certificado.private_key_pem %}
+            <div class="alert alert-danger mt-3">
+                <i class="bi bi-exclamation-octagon-fill me-2"></i>
+                <strong>ATENÇÃO — Modo Factory:</strong>
+                A chave privada RSA está incluída no ZIP e armazenada temporariamente no banco de dados.
+                Após a gravação física no dispositivo, <strong>apague o campo <code>private_key_pem</code></strong>
+                do registro do certificado via shell Django:
+                <pre class="mt-2 mb-0 bg-dark text-white p-2 rounded small"><code>CertificadoDevice.objects.filter(pk={{ certificado.pk }}).update(private_key_pem=None)</code></pre>
+            </div>
+            {% endif %}
+
+            <!-- Passos seguintes -->
+            <div class="card mt-3">
+                <div class="card-header"><strong>Próximos Passos</strong></div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li>Extraia o ZIP baixado</li>
+                        <li>Gere a imagem NVS da partição <code>certs</code>:
+                            <pre class="bg-light p-2 rounded small mt-1">python $IDF_PATH/components/nvs_flash/nvs_partition_generator/nvs_partition_gen.py \
+    generate certs.csv certs.bin 0x6000</pre>
+                        </li>
+                        <li>Grave a imagem NVS no dispositivo:
+                            <pre class="bg-light p-2 rounded small mt-1">esptool.py --port /dev/ttyUSB0 write_flash 0x3FC000 certs.bin</pre>
+                        </li>
+                        <li>Grave também a partição <code>setup</code> com os dados de fábrica (device_id, modelo, MQTT etc.)</li>
+                        <li>Ligue o dispositivo e verifique a conexão ao broker MQTT via <code>telemetry/{{ certificado.device_id|default:certificado.mac_address }}-&lt;LAST4MAC&gt;/data</code></li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <a href="{% url 'tds_new:admin_certificados_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>Voltar à lista de certificados
+                </a>
+            </div>
+        </div>
+
+        <!-- Painel lateral -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><i class="bi bi-file-text me-2"></i>Ações Rápidas</div>
+                <div class="card-body d-grid gap-2">
+                    {% if not certificado.is_revoked %}
+                    <a href="{% url 'tds_new:admin_revogar_certificado' certificado.pk %}"
+                       class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-x-circle me-1"></i>Revogar Certificado
+                    </a>
+                    {% endif %}
+                    {% if gateway %}
+                    <a href="{% url 'tds_new:admin_alocar_gateway' gateway.pk %}"
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-arrow-left-right me-1"></i>Alocar Gateway
+                    </a>
+                    <a href="{% url 'tds_new:admin_gerar_certificado_gateway' gateway.pk %}"
+                       class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-shield-plus me-1"></i>Gerar Novo Certificado
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

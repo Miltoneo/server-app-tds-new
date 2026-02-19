@@ -35,6 +35,8 @@ from .telemetria import (
 # Importa modelos de certificados (Week 6-7)
 from .certificados import (
     CertificadoDevice,
+    BootstrapCertificate,
+    RegistroProvisionamento,
 )
 
 # Expor modelos no namespace do módulo
@@ -51,6 +53,8 @@ __all__ = [
     'LeituraDispositivo',
     'ConsumoMensal',
     'CertificadoDevice',
+    'BootstrapCertificate',
+    'RegistroProvisionamento',
     
     # Mixins
     'BaseTimestampMixin',

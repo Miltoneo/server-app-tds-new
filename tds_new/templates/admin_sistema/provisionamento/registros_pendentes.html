@@ -1,0 +1,170 @@
+{% extends 'admin_sistema/base_admin.html' %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- Estatísticas rápidas -->
+    <div class="row g-3 mb-3">
+        <div class="col-auto">
+            <a href="?status=PENDENTE" class="text-decoration-none">
+                <div class="card border-warning {% if status_filtro == 'PENDENTE' %}bg-warning bg-opacity-10{% endif %}">
+                    <div class="card-body py-2 px-3 text-center">
+                        <div class="fs-4 fw-bold text-warning">{{ total_pendente }}</div>
+                        <div class="small text-muted">Pendentes</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-auto">
+            <a href="?status=PROVISIONADO" class="text-decoration-none">
+                <div class="card border-success {% if status_filtro == 'PROVISIONADO' %}bg-success bg-opacity-10{% endif %}">
+                    <div class="card-body py-2 px-3 text-center">
+                        <div class="fs-4 fw-bold text-success">{{ total_provisionado }}</div>
+                        <div class="small text-muted">Provisionados</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-auto">
+            <a href="?status=REJEITADO" class="text-decoration-none">
+                <div class="card border-danger {% if status_filtro == 'REJEITADO' %}bg-danger bg-opacity-10{% endif %}">
+                    <div class="card-body py-2 px-3 text-center">
+                        <div class="fs-4 fw-bold text-danger">{{ total_rejeitado }}</div>
+                        <div class="small text-muted">Rejeitados</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-auto">
+            <a href="?status=todos" class="text-decoration-none">
+                <div class="card {% if status_filtro == 'todos' %}border-primary{% endif %}">
+                    <div class="card-body py-2 px-3 text-center">
+                        <div class="fs-4 fw-bold">{{ registros.count }}</div>
+                        <div class="small text-muted">
+                            {% if status_filtro == 'todos' %}listados{% else %}filtrados{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabela de Registros -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong><i class="bi bi-inbox me-2"></i>Registros de Auto-Provisionamento</strong>
+            <small class="text-muted">
+                Devices que fizeram primeiro contato usando o bootstrap cert
+            </small>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>MAC Address</th>
+                        <th>Modelo / Firmware</th>
+                        <th>Serial Hardware</th>
+                        <th>IP Origem</th>
+                        <th>Bootstrap Cert</th>
+                        <th>Registrado em</th>
+                        <th>Status</th>
+                        <th class="text-end" style="width:180px">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reg in registros %}
+                    <tr class="{% if reg.status == 'PENDENTE' %}table-warning{% elif reg.status == 'PROVISIONADO' %}table-success{% elif reg.status == 'REJEITADO' %}table-danger{% endif %}">
+                        <td><code>{{ reg.mac_address }}</code></td>
+                        <td>
+                            <strong>{{ reg.modelo|default:"—" }}</strong>
+                            {% if reg.fw_version %}
+                            <br><small class="text-muted">fw: {{ reg.fw_version }}</small>
+                            {% endif %}
+                        </td>
+                        <td><code class="small">{{ reg.serial_number_device|default:"—" }}</code></td>
+                        <td><small>{{ reg.ip_origem|default:"—" }}</small></td>
+                        <td>
+                            {% if reg.bootstrap_cert %}
+                            <small>{{ reg.bootstrap_cert.label|truncatechars:20 }}</small>
+                            {% else %}
+                            <small class="text-muted">—</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ reg.created_at|date:"d/m/Y H:i" }}
+                        </td>
+                        <td>
+                            {% if reg.status == 'PENDENTE' %}
+                                <span class="badge bg-warning text-dark">Pendente</span>
+                            {% elif reg.status == 'ALOCADO' %}
+                                <span class="badge bg-info text-dark">Alocado</span>
+                            {% elif reg.status == 'PROVISIONADO' %}
+                                <span class="badge bg-success">Provisionado</span>
+                                {% if reg.certificado %}
+                                <br><small class="text-muted">{{ reg.certificado.device_id }}</small>
+                                {% endif %}
+                            {% elif reg.status == 'REJEITADO' %}
+                                <span class="badge bg-danger">Rejeitado</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if reg.status == 'PENDENTE' or reg.status == 'ALOCADO' %}
+                            <a href="{% url 'tds_new:admin_processar_registro' reg.pk %}"
+                               class="btn btn-sm btn-primary">
+                                <i class="bi bi-check2-circle me-1"></i>Alocar
+                            </a>
+                            <form method="post" action="{% url 'tds_new:admin_rejeitar_registro' reg.pk %}"
+                                  class="d-inline"
+                                  onsubmit="return confirm('Rejeitar este device?')">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </form>
+                            {% elif reg.status == 'PROVISIONADO' and reg.certificado %}
+                            <a href="{% url 'tds_new:admin_download_certificado' reg.certificado.pk %}"
+                               class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-download me-1"></i>Cert ZIP
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                            Nenhum registro de auto-provisionamento
+                            {% if status_filtro and status_filtro != 'todos' %}
+                            com status "{{ status_filtro }}"
+                            {% endif %}
+                            encontrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- API Info -->
+    <div class="card mt-3 border-light">
+        <div class="card-header bg-light">
+            <small><strong><i class="bi bi-code-slash me-2"></i>Endpoint de Auto-Registro (dispositivo)</strong></small>
+        </div>
+        <div class="card-body py-2">
+            <pre class="mb-0 small bg-dark text-light rounded p-2"><code>POST /tds_new/api/provision/register/
+Content-Type: application/json
+
+{
+  "mac":        "aa:bb:cc:dd:ee:ff",
+  "serial":     "DCU-8210-001234",
+  "modelo":     "DCU-8210",
+  "fw_version": "4.0.1"
+}</code></pre>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

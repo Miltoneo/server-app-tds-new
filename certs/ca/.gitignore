@@ -1,0 +1,10 @@
+# Ignorar chave privada da CA — NUNCA commitar
+ca.key
+ca.srl
+
+# Ignorar certificados de dispositivos individuais (gerados dinamicamente)
+*.key
+*.p12
+
+# Arquivos temporários de geração
+*.csr_tmp

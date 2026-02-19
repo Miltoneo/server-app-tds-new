@@ -1,16 +1,19 @@
 """
 Modelos de Certificados X.509 - TDS New
 
-CertificadoDevice: Gestão de certificados mTLS dos dispositivos IoT
+CertificadoDevice:         Certificado individual por dispositivo (emitido pelo backend)
+BootstrapCertificate:      Certificado compartilhado gravado na fábrica em TODOS os devices
+RegistroProvisionamento:   Pedido de auto-registro enviado pelo device no primeiro boot
 """
 
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.utils import timezone
 from datetime import timedelta
 import re
 
-from .base import SaaSBaseModel
+from .base import SaaSBaseModel, BaseAuditMixin
 
 
 class CertificadoDevice(SaaSBaseModel):
@@ -41,24 +44,69 @@ class CertificadoDevice(SaaSBaseModel):
         ('OTHER', 'Outro motivo'),
     ]
     
-    # Identificação do dispositivo
+    # =========================================================================
+    # IDENTIFICAÇÃO DO DISPOSITIVO
+    # =========================================================================
+
     mac_address = models.CharField(
         max_length=17,
         verbose_name="MAC Address",
         help_text="MAC address do dispositivo (formato aa:bb:cc:dd:ee:ff)"
     )
-    
+
+    device_id = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name="Device ID",
+        help_text="Identidade lógica MQTT do dispositivo (ex: AA0011). "
+                  "Preenchido durante o provisionamento."
+    )
+
+    gateway = models.ForeignKey(
+        'tds_new.Gateway',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='certificados',
+        verbose_name="Gateway Associado",
+        help_text="Gateway ao qual este certificado pertence (opcional — pode ser vinculado após alocação)"
+    )
+
+    # =========================================================================
+    # CSR E CERTIFICADO (Modelo CSR — chave privada jamais sai do dispositivo)
+    # =========================================================================
+
+    csr_pem = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="CSR PEM",
+        help_text="Certificate Signing Request enviado pelo dispositivo. "
+                  "Mantido para auditoria. O dispositivo gera o par de chaves internamente."
+    )
+
     # Certificado
     certificate_pem = models.TextField(
         verbose_name="Certificado PEM",
         help_text="Certificado X.509 no formato PEM (-----BEGIN CERTIFICATE-----)"
     )
-    
+
+    # CAMPO LEGADO — NÃO UTILIZAR em novos fluxos.
+    # No modelo CSR, a chave privada é gerada pelo dispositivo e nunca sai dele.
     private_key_pem = models.TextField(
         blank=True,
         null=True,
-        verbose_name="Chave Privada PEM",
-        help_text="Chave privada RSA no formato PEM (armazenamento opcional - use com cuidado!)"
+        verbose_name="Chave Privada PEM [LEGADO]",
+        help_text="[LEGADO — NÃO USE] A chave privada é gerada pelo dispositivo e nunca deve ser "
+                  "armazenada no servidor. Campo mantido apenas para compatibilidade histórica."
+    )
+
+    fingerprint_sha256 = models.CharField(
+        max_length=95,
+        blank=True,
+        null=True,
+        verbose_name="Fingerprint SHA-256",
+        help_text="Hash SHA-256 do certificado (ex: AA:BB:CC:...). Calculado automaticamente."
     )
     
     # Metadados do certificado
@@ -125,8 +173,13 @@ class CertificadoDevice(SaaSBaseModel):
     class Meta:
         verbose_name = "Certificado de Dispositivo"
         verbose_name_plural = "Certificados de Dispositivos"
-        unique_together = [
-            ('conta', 'mac_address')
+        constraints = [
+            # Apenas um certificado ATIVO por conta+MAC (certs revogados podem coexistir — histórico)
+            models.UniqueConstraint(
+                fields=['conta', 'mac_address'],
+                condition=Q(is_revoked=False),
+                name='unique_active_cert_per_device'
+            ),
         ]
         indexes = [
             models.Index(fields=['conta', 'mac_address']),
@@ -135,12 +188,15 @@ class CertificadoDevice(SaaSBaseModel):
             models.Index(fields=['expires_at']),  # Query de renovação
             models.Index(fields=['is_revoked']),  # Query para CRL
             models.Index(fields=['renewal_scheduled', 'renewal_date']),  # OTA tasks
+            models.Index(fields=['device_id'], name='tds_new_cer_device_id_idx'),
+            models.Index(fields=['gateway'], name='tds_new_cer_gateway_idx'),
         ]
         ordering = ['-created_at']
-    
+
     def __str__(self):
         status = "REVOGADO" if self.is_revoked else "ATIVO"
-        return f"{self.mac_address} - Serial {self.serial_number} - {status}"
+        label = self.device_id or self.mac_address
+        return f"{label} - Serial {self.serial_number} - {status}"
     
     @property
     def dias_para_expiracao(self):
@@ -317,3 +373,275 @@ class CertificadoDevice(SaaSBaseModel):
         self.save(update_fields=['renewal_scheduled', 'renewal_date', 'updated_at'])
         
         return True
+
+# =============================================================================
+# CERTIFICADO BOOTSTRAP (compartilhado — gravado na fábrica em todos os devices)
+# =============================================================================
+
+class BootstrapCertificate(BaseAuditMixin):
+    """
+    Certificado X.509 bootstrap — gravado na fábrica em TODOS os dispositivos.
+
+    Propósito:
+      Permite que o device se conecte ao broker na PRIMEIRA VEZ, mesmo sem estar
+      registrado no sistema. O broker autoriza o bootstrap cert APENAS no tópico de
+      provisionamento (tds_new/provision/request), bloqueando telemetria.
+
+    Características:
+      - GLOBAL — não pertence a nenhuma conta. Um único cert para toda a fábrica.
+      - Apenas UM pode estar ativo por vez (is_active=True).
+      - Rotação de lote: gera novo → marca anterior como inativo (não revogado).
+      - Revogação de emergência: quando a chave privada é comprometida.
+        Revogar = TODOS os devices ainda não provisionados ficam sem acesso ao broker.
+
+    Fluxo:
+      Fábrica → download do ZIP (bootstrap.crt + bootstrap.key) → flash em todos os devices
+      Primeiro boot → device usa bootstrap cert → conecta ao broker → envia RegistroProvisionamento
+      Admin aloca device → emite CertificadoDevice individual → device passa a usar cert individual
+
+    Armazenamento NVS no ESP32 (partição 'bootstrap'):
+      Chave NVS           | Arquivo
+      bootstrap_cert      | bootstrap.crt
+      bootstrap_key       | bootstrap.key
+      ca_cert             | ca.crt
+    """
+
+    REVOKE_REASON_CHOICES = [
+        ('COMPROMISED', 'Chave privada comprometida/vazada'),
+        ('ROTATION', 'Rotação planejada de certificado'),
+        ('OTHER', 'Outro motivo'),
+    ]
+
+    label = models.CharField(
+        max_length=100,
+        verbose_name="Identificação",
+        help_text="Nome/versão deste bootstrap cert (ex: 'Produção 2026', 'Lote Q1-2026')"
+    )
+
+    # Certificado e chave (ambos armazenados — fábrica precisa dos dois para gravar nos devices)
+    certificate_pem = models.TextField(
+        verbose_name="Certificado PEM",
+        help_text="Certificado X.509 no formato PEM. Gravado em TODOS os devices de fábrica."
+    )
+    private_key_pem = models.TextField(
+        verbose_name="Chave Privada PEM",
+        help_text="Chave privada RSA. Gravada junto com o cert em todos os devices de fábrica."
+    )
+
+    # Metadados PKI
+    serial_number = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Serial Number"
+    )
+    fingerprint_sha256 = models.CharField(
+        max_length=95,
+        blank=True,
+        null=True,
+        verbose_name="Fingerprint SHA-256"
+    )
+    expires_at = models.DateTimeField(verbose_name="Expira em")
+
+    # Estado
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Ativo",
+        help_text="Apenas um bootstrap cert pode estar ativo por vez. "
+                  "O cert ativo é o que deve ser gravado nos devices que saem da fábrica agora."
+    )
+    is_revoked = models.BooleanField(
+        default=False,
+        verbose_name="Revogado",
+        help_text="Se revogado, devices usando este bootstrap cert não conseguirão mais "
+                  "se conectar ao broker (broker deve atualizar CRL)."
+    )
+    revoked_at = models.DateTimeField(blank=True, null=True, verbose_name="Revogado em")
+    revoke_reason = models.CharField(
+        max_length=30,
+        choices=REVOKE_REASON_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name="Motivo da Revogação"
+    )
+    revoke_notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Observações da Revogação"
+    )
+
+    class Meta:
+        verbose_name = "Certificado Bootstrap"
+        verbose_name_plural = "Certificados Bootstrap"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['is_active']),
+            models.Index(fields=['is_revoked']),
+            models.Index(fields=['serial_number']),
+        ]
+
+    def __str__(self):
+        estado = "REVOGADO" if self.is_revoked else ("ATIVO" if self.is_active else "INATIVO")
+        return f"{self.label} — {estado} (serial {self.serial_number[:16]}...)"
+
+    @property
+    def dias_para_expiracao(self):
+        if not self.expires_at:
+            return 0
+        return (self.expires_at - timezone.now()).days
+
+    def revogar(self, motivo: str, notas: str = '', usuario=None):
+        """Revoga este bootstrap cert."""
+        if self.is_revoked:
+            raise ValidationError("Este certificado bootstrap já foi revogado.")
+        self.is_revoked = True
+        self.is_active = False
+        self.revoked_at = timezone.now()
+        self.revoke_reason = motivo
+        self.revoke_notes = notas
+        self.save(update_fields=[
+            'is_revoked', 'is_active', 'revoked_at',
+            'revoke_reason', 'revoke_notes', 'updated_at'
+        ])
+        return True
+
+    def desativar(self):
+        """Marca como inativo (rotação para novo cert sem revogar)."""
+        if not self.is_active:
+            return False
+        self.is_active = False
+        self.save(update_fields=['is_active', 'updated_at'])
+        return True
+
+
+# =============================================================================
+# REGISTRO DE PROVISIONAMENTO (pedido de auto-registro no primeiro boot)
+# =============================================================================
+
+class RegistroProvisionamento(BaseAuditMixin):
+    """
+    Registro enviado pelo device no primeiro boot, usando o bootstrap cert.
+
+    O device publica para tds_new/provision/request (ou chama POST /api/provision/register/)
+    com seus dados de identidade. O backend registra aqui e notifica os admins.
+
+    Fluxo:
+      1. Device usa bootstrap cert → conecta ao broker
+      2. Device POST /api/provision/register/ com MAC, serial, modelo, fw_version
+      3. RegistroProvisionamento criado com status=PENDENTE
+      4. Admin vê na lista "Registros Pendentes"
+      5. Admin aloca Gateway para uma Conta → gera CertificadoDevice individual
+      6. Admin faz download do ZIP → grava no device (ou envia via MQTT OTA)
+      7. Status → PROVISIONADO
+
+    Nota:
+      Este modelo não tem campo 'conta' pois o device ainda não pertence a nenhuma
+      conta no momento do auto-registro. A conta é atribuída pelo admin na etapa 5.
+    """
+
+    STATUS_CHOICES = [
+        ('PENDENTE', 'Pendente — aguardando alocação pelo admin'),
+        ('ALOCADO', 'Alocado — gateway criado, aguardando cert'),
+        ('PROVISIONADO', 'Provisionado — cert individual emitido e gravado'),
+        ('REJEITADO', 'Rejeitado — device não autorizado'),
+    ]
+
+    # Identidade enviada pelo device
+    mac_address = models.CharField(
+        max_length=17,
+        verbose_name="MAC Address",
+        help_text="MAC address do device (aa:bb:cc:dd:ee:ff)"
+    )
+    serial_number_device = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Serial do Hardware",
+        help_text="Serial gravado no hardware (ex: DCU-8210-001234)"
+    )
+    modelo = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Modelo",
+        help_text="Modelo do device (ex: DCU-8210)"
+    )
+    fw_version = models.CharField(
+        max_length=30,
+        blank=True,
+        null=True,
+        verbose_name="Versão do Firmware"
+    )
+    ip_origem = models.GenericIPAddressField(
+        blank=True,
+        null=True,
+        verbose_name="IP de Origem",
+        help_text="IP do device no momento do registro (informativo)"
+    )
+
+    # Rastreabilidade do bootstrap cert usado
+    bootstrap_cert = models.ForeignKey(
+        BootstrapCertificate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='registros',
+        verbose_name="Bootstrap Cert Utilizado",
+        help_text="Bootstrap cert que o device usou para fazer este pedido de registro"
+    )
+
+    # Estado do fluxo
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='PENDENTE',
+        verbose_name="Status"
+    )
+
+    # Resultado — preenchido após alocação + provisionamento
+    gateway = models.ForeignKey(
+        'tds_new.Gateway',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='registros_provisionamento',
+        verbose_name="Gateway Alocado"
+    )
+    certificado = models.OneToOneField(
+        CertificadoDevice,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='registro_provisionamento',
+        verbose_name="Certificado Individual Emitido"
+    )
+    processado_por = models.ForeignKey(
+        'tds_new.CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='registros_processados',
+        verbose_name="Processado Por"
+    )
+    processado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Processado Em"
+    )
+    notas_admin = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Notas do Admin"
+    )
+
+    class Meta:
+        verbose_name = "Registro de Provisionamento"
+        verbose_name_plural = "Registros de Provisionamento"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['mac_address']),
+            models.Index(fields=['status']),
+            models.Index(fields=['mac_address', 'status']),
+        ]
+
+    def __str__(self):
+        return f"{self.mac_address} — {self.get_status_display()} ({self.created_at.strftime('%d/%m/%Y %H:%M')})"
