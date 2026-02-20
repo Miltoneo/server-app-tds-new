@@ -6,6 +6,8 @@ Week 9: Alocação de gateways, geração/download/revogação de certificados
 Week 9+: Bootstrap certificates + Auto-registro de devices
 """
 
+import logging
+
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.generic import ListView
 from django.contrib.auth.mixins import UserPassesTestMixin
@@ -24,6 +26,8 @@ from tds_new.forms.provisionamento import (
     RevogarBootstrapCertForm,
     ProcessarRegistroForm,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CertificadosListView(UserPassesTestMixin, ListView):
@@ -503,6 +507,17 @@ def download_bootstrap_zip_view(request, bootstrap_id):
         try:
             service = CertificadoService()
             zip_bytes = service.gerar_zip_bootstrap(bootstrap)
+
+            # Remover chave privada do banco imediatamente após capturar os bytes
+            # (medida de segurança: chave é necessária somente para este download)
+            bootstrap.limpar_chave_privada()
+            logger.warning(
+                "[BootstrapDownload] Chave privada removida do banco após download: "
+                "ID=%s label='%s' usuario=%s",
+                bootstrap.pk, bootstrap.label,
+                getattr(request.user, 'email', str(request.user))
+            )
+
             filename = f'bootstrap_{bootstrap.label.replace(" ", "_")}_{bootstrap.serial_number[:12]}.zip'
             response = HttpResponse(zip_bytes, content_type='application/zip')
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -600,14 +615,16 @@ def registros_pendentes_view(request):
 @staff_member_required
 def processar_registro_view(request, registro_id):
     """
-    Admin aloca um device pendente para uma conta e (opcionalmente) emite cert individual.
+    Admin aloca um device pendente para uma conta e emite automaticamente o cert individual.
 
     Fluxo:
       1. Admin seleciona conta destino + device_id + nome do gateway
       2. Gateway é criado na conta destino
-      3. Se "gerar_certificado" marcado: CertificadoService.gerar_certificado_factory() é chamado
-      4. RegistroProvisionamento atualizado → status=PROVISIONADO (ou ALOCADO)
-      5. Admin pode fazer download do cert ZIP na etapa seguinte
+      3. Geração do cert (modo determinado pelo registro):
+         - Se registro.csr_pem preenchido → CertificadoService.gerar_certificado_de_csr()  ← CORRETO
+         - Se registro.csr_pem vazio      → CertificadoService.gerar_certificado_factory() ← [LEGADO]
+      4. RegistroProvisionamento atualizado → status=PROVISIONADO
+      5. Admin é redirecionado para download do cert ZIP
     """
     from tds_new.services.certificados import CertificadoService, CertificadoServiceError, CANaoConfiguradaError
 
@@ -629,7 +646,6 @@ def processar_registro_view(request, registro_id):
                     conta = form.cleaned_data['conta']
                     device_id = form.cleaned_data['device_id']
                     nome_gateway = form.cleaned_data['nome_gateway']
-                    gerar_cert = form.cleaned_data.get('gerar_certificado', True)
                     notas = form.cleaned_data.get('notas', '')
 
                     # Criar Gateway na conta destino
@@ -650,35 +666,40 @@ def processar_registro_view(request, registro_id):
                     registro.processado_em = timezone.now()
                     registro.notas_admin = notas
 
-                    cert = None
-                    if gerar_cert:
-                        service = CertificadoService()
+                    service = CertificadoService()
+
+                    # Fluxo CSR (correto): usar quando o device enviou o CSR no auto-registro
+                    # Fluxo Factory (legado): usar quando o firmware não enviar CSR
+                    if registro.csr_pem:
+                        cert = service.gerar_certificado_de_csr(
+                            device_id=device_id,
+                            csr_pem=registro.csr_pem,
+                            mac_address=registro.mac_address,
+                            conta=conta,
+                            gateway=gateway,
+                        )
+                    else:
+                        logger.warning(
+                            "[LEGADO] Device %s sem CSR — gerar_certificado_factory(). "
+                            "Atualize o firmware para enviar CSR no auto-registro.",
+                            registro.mac_address,
+                        )
                         cert = service.gerar_certificado_factory(
                             device_id=device_id,
                             mac_address=registro.mac_address,
                             conta=conta,
                             gateway=gateway,
                         )
-                        registro.certificado = cert
-                        registro.status = 'PROVISIONADO'
-                        messages.success(
-                            request,
-                            f'✅ Device {registro.mac_address} alocado para "{conta.name}" '
-                            f'e certificado gerado. Faça o download do pacote.'
-                        )
-                    else:
-                        registro.status = 'ALOCADO'
-                        messages.success(
-                            request,
-                            f'✅ Device {registro.mac_address} alocado para "{conta.name}". '
-                            f'Gere o certificado quando estiver pronto.'
-                        )
-
+                    registro.certificado = cert
+                    registro.status = 'PROVISIONADO'
                     registro.save()
 
-                    if cert:
-                        return redirect('tds_new:admin_download_certificado', certificado_id=cert.pk)
-                    return redirect('tds_new:admin_registros_pendentes')
+                    messages.success(
+                        request,
+                        f'✅ Device {registro.mac_address} alocado para "{conta.name}" '
+                        f'e certificado gerado. Faça o download do pacote.'
+                    )
+                    return redirect('tds_new:admin_download_certificado', certificado_id=cert.pk)
 
             except CANaoConfiguradaError as e:
                 messages.error(request, f'CA não configurada: {e}')

@@ -13,6 +13,8 @@ import json
 import logging
 import re
 
+from django.conf import settings
+from django.core.cache import cache
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -23,6 +25,39 @@ logger = logging.getLogger(__name__)
 def _mac_valido(mac: str) -> bool:
     """Valida formato MAC address: aa:bb:cc:dd:ee:ff"""
     return bool(re.match(r'^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$', mac))
+
+
+def _check_rate_limit(ip: str) -> bool:
+    """
+    Verifica se o IP excedeu o limite de requisições ao endpoint de auto-registro.
+
+    Usa o cache Django (Redis ou DB, conforme settings.CACHES) com janela deslizante
+    simples baseada em TTL.
+
+    Returns:
+        True  → limite excedido, requisição deve ser bloqueada (HTTP 429)
+        False → dentro do limite, requisição pode prosseguir
+    """
+    max_requests = getattr(settings, 'PROVISION_RATE_LIMIT_MAX', 10)
+    window = getattr(settings, 'PROVISION_RATE_LIMIT_WINDOW', 3600)
+
+    cache_key = f"autoregister_rl:{ip}"
+
+    try:
+        count = cache.get(cache_key, 0)
+        if count >= max_requests:
+            return True  # Bloquear antes de incrementar
+        if count == 0:
+            # Primeira requisição nesta janela — inicializa com TTL
+            cache.set(cache_key, 1, window)
+        else:
+            cache.incr(cache_key)
+    except Exception:
+        # Se o cache estiver indisponível, permitir (fail-open)
+        # para não bloquear devices legítimos por falha de infraestrutura
+        pass
+
+    return False  # Permitir
 
 
 @csrf_exempt
@@ -47,6 +82,7 @@ def auto_register_view(request):
         200 registered (novo registro criado)
         200 already_registered (device já havia se registrado antes)
         400 invalid_request (MAC ausente ou inválido)
+        429 rate_limited (muitas tentativas do mesmo IP)
         500 server_error
 
     Nota de Segurança:
@@ -56,6 +92,24 @@ def auto_register_view(request):
         chegue aqui já passou pela validação do bootstrap cert.
     """
     from tds_new.services.certificados import CertificadoService, CertificadoServiceError
+
+    # Capturar IP de origem (necessário para rate limiting, antes de qualquer lógica)
+    ip_origem = (
+        request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+        or request.META.get('REMOTE_ADDR', '0.0.0.0')
+    )
+
+    # Rate limiting por IP
+    if _check_rate_limit(ip_origem):
+        logger.warning("[AutoRegister] Rate limit excedido: IP=%s", ip_origem)
+        return JsonResponse(
+            {
+                'status': 'error',
+                'code': 'rate_limited',
+                'message': 'Muitas tentativas de registro. Tente novamente mais tarde.',
+            },
+            status=429
+        )
 
     # Parsear body JSON
     try:
@@ -80,12 +134,6 @@ def auto_register_view(request):
             status=400
         )
 
-    # Capturar IP de origem
-    ip_origem = (
-        request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
-        or request.META.get('REMOTE_ADDR')
-    )
-
     try:
         service = CertificadoService()
         registro, criado = service.processar_auto_registro(
@@ -95,6 +143,7 @@ def auto_register_view(request):
             fw_version=body.get('fw_version', ''),
             ip_origem=ip_origem,
             bootstrap_fingerprint=body.get('bootstrap_fingerprint', ''),
+            csr_pem=body.get('csr_pem', ''),
         )
 
         if criado:

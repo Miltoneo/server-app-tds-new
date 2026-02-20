@@ -287,17 +287,6 @@ class ProcessarRegistroForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Medidor Prédio A'})
     )
 
-    gerar_certificado = forms.BooleanField(
-        required=False,
-        initial=True,
-        label="Gerar certificado individual agora",
-        help_text=(
-            "Se marcado, um certificado X.509 individual será emitido para este device "
-            "imediatamente após a alocação."
-        ),
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
-    )
-
     notas = forms.CharField(
         required=False,
         max_length=500,

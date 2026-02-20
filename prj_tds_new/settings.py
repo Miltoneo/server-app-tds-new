@@ -623,3 +623,46 @@ MQTT_CA_KEY_PASSWORD = env('MQTT_CA_KEY_PASSWORD', default='')
 
 # Validade padrão dos certificados de dispositivos (em dias)
 DEVICE_CERT_VALIDITY_DAYS = env.int('DEVICE_CERT_VALIDITY_DAYS', default=3650)  # 10 anos
+
+# Caminho onde a CRL gerada será escrita (lida pelo Mosquitto via crlfile)
+MQTT_CRL_PATH = env('MQTT_CRL_PATH', default=str(BASE_DIR / 'certs' / 'ca' / 'ca.crl'))
+
+# =============================================================================
+# PROVISIONAMENTO IoT — RATE LIMITING
+# =============================================================================
+# Limite de requisições ao endpoint POST /api/provision/register/ por IP.
+# Protege contra cadastro em massa usando bootstrap cert comprometido.
+#   MAX    → número de requisições permitidas na janela
+#   WINDOW → tamanho da janela em segundos (default: 1 hora)
+PROVISION_RATE_LIMIT_MAX = env.int('PROVISION_RATE_LIMIT_MAX', default=10)
+PROVISION_RATE_LIMIT_WINDOW = env.int('PROVISION_RATE_LIMIT_WINDOW', default=3600)
+
+# =============================================================================
+# CELERY — TAREFAS ASSÍNCRONAS E AGENDADAS
+# =============================================================================
+# Broker e backend: Redis (mesma instância usada pelo cache, banco diferente)
+CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://localhost:6379/1')
+CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://localhost:6379/1')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE  # America/Sao_Paulo
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 300  # 5 minutos por tarefa
+
+# Agendam as tarefas periódicas do cert lifecycle
+# Requer: celery -A prj_tds_new beat -l info
+from celery.schedules import crontab  # noqa: E402 — import tardio, settings já configurado
+
+CELERY_BEAT_SCHEDULE = {
+    # Agenda certs que entram na janela de renovação (todos os dias, às 02:00 UTC)
+    'agendar-renovacoes-diario': {
+        'task': 'tds_new.agendar_renovacoes',
+        'schedule': crontab(hour=2, minute=0),
+    },
+    # Alerta sobre renovações OTA pendentes (a cada hora)
+    'alertar-renovacoes-pendentes': {
+        'task': 'tds_new.alertar_renovacoes_pendentes',
+        'schedule': crontab(minute=0),  # minuto 0 de cada hora
+    },
+}

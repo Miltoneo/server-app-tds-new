@@ -103,18 +103,9 @@
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Certificado TLS</label>
-                    <div class="form-check">
-                        {{ form.gerar_certificado }}
-                        <label class="form-check-label" for="{{ form.gerar_certificado.id_for_label }}">
-                            Gerar e emitir certificado de operação agora
-                        </label>
-                    </div>
-                    {% if form.gerar_certificado.errors %}
-                    <div class="text-danger small mt-1">{{ form.gerar_certificado.errors }}</div>
-                    {% endif %}
-                    <div class="form-text">
-                        Se marcado, o certificado TLS de operação é gerado imediatamente e o device pode ser configurado
-                        na sequência. Desmarcado, o device fica no status <em>Alocado</em> e o cert pode ser emitido depois.
+                    <div class="alert alert-info py-2 mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-shield-lock-fill"></i>
+                        <span>O certificado de operação X.509 será gerado e vinculado ao device automaticamente ao confirmar a alocação.</span>
                     </div>
                 </div>
 

@@ -690,7 +690,16 @@ FIM DAS INSTRUÇÕES
           bootstrap.key  → Chave privada bootstrap (gravada em TODOS os devices)
           ca.crt         → Certificado raiz da CA
           README_nvs.txt → Instruções de gravação via NVS partition tool
+
+        Raises:
+            CertificadoServiceError: Se a chave privada já foi removida (download já realizado).
         """
+        if not bootstrap.private_key_pem:
+            raise CertificadoServiceError(
+                f"Bootstrap cert ID={bootstrap.pk} '{bootstrap.label}': "
+                "a chave privada já foi removida do banco após o primeiro download (medida de segurança). "
+                "Para gerar um novo pacote de fábrica, gere um novo Bootstrap Certificate."
+            )
         ca_pem = self.get_ca_cert_pem()
 
         instrucoes = f"""
@@ -782,6 +791,7 @@ APÓS PROVISIONAMENTO:
         fw_version: str = '',
         ip_origem: str = None,
         bootstrap_fingerprint: str = None,
+        csr_pem: str = '',
     ):
         """
         Processa o pedido de auto-registro enviado pelo device no primeiro boot.
@@ -800,6 +810,9 @@ APÓS PROVISIONAMENTO:
             fw_version (str): Versão do firmware
             ip_origem (str): IP da requisição
             bootstrap_fingerprint (str): Fingerprint SHA-256 do bootstrap cert usado
+            csr_pem (str): CSR PKCS#10 enviado pelo device (firmware atualizado).
+                           Quando presente, persiste no RegistroProvisionamento para
+                           uso pelo admin ao gerar o cert individual via fluxo CSR.
 
         Returns:
             tuple: (RegistroProvisionamento, criado: bool)
@@ -834,6 +847,7 @@ APÓS PROVISIONAMENTO:
             fw_version=fw_version or None,
             ip_origem=ip_origem or None,
             bootstrap_cert=bootstrap_cert_obj,
+            csr_pem=csr_pem or None,
             status='PENDENTE',
         )
 

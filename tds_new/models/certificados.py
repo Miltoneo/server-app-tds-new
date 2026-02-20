@@ -343,11 +343,11 @@ class CertificadoDevice(SaaSBaseModel):
         self.revoke_notes = notes
         
         self.save(update_fields=['is_revoked', 'revoked_at', 'revoke_reason', 'revoke_notes', 'updated_at'])
-        
-        # TODO (Week 12): Atualizar CRL do Mosquitto broker
-        # from tds_new.utils.crl import atualizar_crl_broker
-        # atualizar_crl_broker()
-        
+
+        # Atualizar CRL do Mosquitto broker (fail-safe: erro não desfaz a revogação no banco)
+        from tds_new.utils.crl import atualizar_crl_broker
+        atualizar_crl_broker()
+
         return True
     
     def agendar_renovacao(self):
@@ -502,6 +502,11 @@ class BootstrapCertificate(BaseAuditMixin):
             'is_revoked', 'is_active', 'revoked_at',
             'revoke_reason', 'revoke_notes', 'updated_at'
         ])
+
+        # Atualizar CRL do Mosquitto broker (fail-safe: erro não desfaz a revogação no banco)
+        from tds_new.utils.crl import atualizar_crl_broker
+        atualizar_crl_broker()
+
         return True
 
     def desativar(self):
@@ -510,6 +515,28 @@ class BootstrapCertificate(BaseAuditMixin):
             return False
         self.is_active = False
         self.save(update_fields=['is_active', 'updated_at'])
+        return True
+
+    def limpar_chave_privada(self):
+        """
+        Remove a chave privada do banco após o download do ZIP para a fábrica.
+
+        A chave privada bootstrap é necessária somente uma vez — para gravar nos
+        devices. Após o download, mantê-la persistida é um risco desnecessário:
+        se o banco vazar, um atacante teria acesso ao cert que autentica todos os
+        devices ainda não provisionados.
+
+        Após a limpeza:
+          - gerar_zip_bootstrap() lançará CertificadoServiceError (não é possível re-download)
+          - O cert continua válido para conexões mTLS (broker usa apenas o .crt)
+
+        Returns:
+            bool: True se a chave foi limpa, False se já estava vazia
+        """
+        if not self.private_key_pem:
+            return False
+        self.private_key_pem = ''
+        self.save(update_fields=['private_key_pem', 'updated_at'])
         return True
 
 
@@ -587,6 +614,18 @@ class RegistroProvisionamento(BaseAuditMixin):
         related_name='registros',
         verbose_name="Bootstrap Cert Utilizado",
         help_text="Bootstrap cert que o device usou para fazer este pedido de registro"
+    )
+
+    # CSR do dispositivo (Modelo PKI correto — chave privada jamais sai do device)
+    # Campo opcional: preenchido quando o firmware envia o CSR no auto-registro.
+    # Quando presente, o admin pode usar gerar_certificado_de_csr() no lugar do factory.
+    csr_pem = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="CSR (PKCS#10)",
+        help_text="Certificate Signing Request enviado pelo device no auto-registro. "
+                  "Quando presente, o cert individual é gerado pelo fluxo CSR (chave privada "
+                  "permanece no device). Requer firmware atualizado."
     )
 
     # Estado do fluxo
