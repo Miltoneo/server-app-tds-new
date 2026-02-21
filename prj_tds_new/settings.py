@@ -78,6 +78,10 @@ SILENCED_SYSTEM_CHECKS = [
     # 'fields.E307',  # Lazy references para apps não instalados
 ]
 
+# W006 ignorado apenas no dev: bloqueio por IP não faz sentido em localhost
+if ENVIRONMENT == 'DEV':
+    SILENCED_SYSTEM_CHECKS.append('axes.W006')
+
 # =============================================================================
 # APLICAÇÕES DJANGO
 # =============================================================================
@@ -427,9 +431,14 @@ AXES_FAILURE_LIMIT = 5
 # Tempo de bloqueio (5 minutos) - Ajustado para melhor UX
 AXES_COOLOFF_TIME = timedelta(minutes=5)
 
-# ⭐ Bloquear APENAS por USERNAME (não por IP)
-# Permite tentar outro usuário do mesmo computador/IP
-AXES_LOCKOUT_PARAMETERS = ['username']  # ← Removido 'ip_address'
+# ⭐ Parâmetros de bloqueio diferenciados por ambiente:
+# - DEV (localhost): apenas username — IP local não tem sentido como fator
+# - PROD (onkoto.com.br): username + ip_address — bloqueia por ambos, impedindo
+#   ataques de força bruta via rotação de IPs
+if ENVIRONMENT == 'PROD':
+    AXES_LOCKOUT_PARAMETERS = ['ip_address', 'username']
+else:
+    AXES_LOCKOUT_PARAMETERS = ['username']
 
 # ⭐ Nome do campo de username no formulário de login
 AXES_USERNAME_FORM_FIELD = 'username'  # Campo do AuthenticationForm
